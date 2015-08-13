@@ -1,0 +1,31 @@
+{
+  "name": "SVGEditor",
+  "version": "0.0.1",
+  "description": "A minimal d3-based SVG editor.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jywarren/SVGEdit.git"
+  },
+  "keywords": [
+    "svg",
+    "editor"
+  ],
+  "author": "Jeff Warren",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/jywarren/SVGEditor/issues"
+  },
+  "homepage": "https://github.com/jywarren/SVGEditor",
+  "dependencies": {
+    "d3":              "~3.3.13"
+  },
+  "devDependencies": {
+    "matchdep":                           "^0.3.0",
+    "grunt":                              "^0.4.5",
+    "grunt-contrib-concat":               "^0.5.0",
+    "grunt-contrib-watch":                "^0.6.1"
+  }
+}
