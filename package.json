@@ -20,7 +20,8 @@
   },
   "homepage": "https://github.com/jywarren/SVGEditor",
   "dependencies": {
-    "d3":              "~3.3.13"
+    "d3":              "~3.3.13",
+    "simplify-js":     "~1.2.1"
   },
   "devDependencies": {
     "matchdep":                           "^0.3.0",
