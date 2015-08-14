@@ -9,13 +9,18 @@ SVGEditor.Handle = Class.extend({
     _handle.width = 7;
 
     var _cmd = _command.command;
+
+    //_handle.setBezierPoints = function() {
+
+    //}
   
     if (_cmd.toUpperCase() == "Z") {
   
-      // connect to first point again; we may not need to do anything here
+      // SVG command to connect to first point again; we may not need to do anything here
   
     } else {
 
+      // last coord pair is our base point
       var x = _command.points[_command.points.length-1][0],
           y = _command.points[_command.points.length-1][1];
   
@@ -24,7 +29,7 @@ SVGEditor.Handle = Class.extend({
         x += +_last[0];
         y += +_last[1];
       }
-    
+
       // detect bezier
       if (_cmd.toUpperCase() == "C" || _cmd.toUpperCase() == "Q") {
   
@@ -46,26 +51,26 @@ SVGEditor.Handle = Class.extend({
           y2 += +_last[1];
         }
         
-        _svg.select("g.control").append("circle")
+        _handle.x1 = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
                                .attr("cx", x1)
                                .attr("cy", y1)
                                .attr("r", _handle.width / 2);
     
-        _svg.select("g.control").append("line")
+        _handle.x1Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
                                .attr("x1", x)
                                .attr("y1", y)
                                .attr("x2", x1)
                                .attr("y2", y1)
     
-        _svg.select("g.control").append("circle")
+        _handle.x2 = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
                                .attr("cx", x2)
                                .attr("cy", y2)
                                .attr("r", _handle.width / 2);
     
-        _svg.select("g.control").append("line")
+        _handle.x2Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
                                .attr("x1", x)
                                .attr("y1", y)
@@ -100,11 +105,6 @@ SVGEditor.Handle = Class.extend({
                               .attr("stroke", "#0ff")
                               .attr("stroke-width", 1)
                               .attr("fill", "rgba(255,255,255,0.25)");
-  
-      _svg.select("g.control").selectAll("rect.bbox")
-                              .attr("stroke", "#0ff")
-                              .attr("stroke-width", 1)
-                              .attr("fill", "none");
 
     }
 
@@ -114,11 +114,10 @@ SVGEditor.Handle = Class.extend({
   
       _svg.select("g.control").selectAll("rect,circle")
                               .on("mouseover", function() {
-                                d3.select(this).attr("stroke", "#22f")
-                                               .attr("stroke-width", 2);
+                                d3.select(this).attr("stroke", "#22f");
                               })
                               .on("mouseout", function() {
-                                d3.select(this).attr("stroke", "#888")
+                                d3.select(this).attr("stroke", "#0ff")
                                                .attr("stroke-width", 1);
                               });
 
@@ -133,22 +132,52 @@ SVGEditor.Handle = Class.extend({
 
         // adjust parent point to match
         var x = d3.event.x,
-            y = d3.event.y;
+            y = d3.event.y,
+            _command = _parent.points[_handle.index].command,
+            _points = _parent.points[_handle.index].points,
+            _basePoints = _points[_points.length-1];
 
-        _parent.points[_handle.index].points[0] = [x + _handle.width/2,
-                                                   y + _handle.width/2];
+        // overwrite last point - base point
+        _parent.points[_handle.index].points[_points.length-1] = [x + _handle.width/2,
+                                                                  y + _handle.width/2];
 
-        // if it's lower case, add relative offsets from last point
-        if (_parent.points[_handle.index].command.toLowerCase() == _parent.points[_handle.index].command) {
-          _parent.points[_handle.index].points[0][0] += _last[0];
-          _parent.points[_handle.index].points[0][1] += _last[1];
+        var adjustRelative = function(points) {
+          return [ points[0] += _last[0], points[1] += _last[1] ];
         }
 
-        // convert to absolute; if not preferred, then we could use _last
-        //_parent.points[_handle.index].command = _parent.points[_handle.index].command.toUpperCase();
+        // if it's lower case, add relative offsets from last point
+        if (_command.toLowerCase() == _command) {
+          _parent.points[_handle.index].points.map(adjustRelative);
+        }
 
-        _parent.setPoints();
+        if (_points.length > 1) {
 
+          // update bezier handles
+          var dx = x - _handle.oldPoints.points[_points.length-1][0],
+              dy = y - _handle.oldPoints.points[_points.length-1][1];
+
+          // overwrite x1,y1 point
+          var old1 = _handle.oldPoints.points[0];
+          _parent.points[_handle.index].points[0] = [old1[0] + d3.event.dx,
+                                                     old1[1] + d3.event.dy];
+ 
+          // overwrite x2,y2 point
+          var old2 = _handle.oldPoints.points[1];
+          _parent.points[_handle.index].points[1] = [old2[0] + d3.event.dx,
+                                                     old2[1] + d3.event.dy];
+
+        }
+
+        _parent.setPoints(_parent.points);
+
+      });
+
+      drag.on("dragend", function(d) {
+        _parent.Editor.updateBbox();
+      });
+
+      drag.on("dragstart", function(d) {
+        _handle.oldPoints = _parent.points[_handle.index];
       });
 
       _handle.el.call(drag);

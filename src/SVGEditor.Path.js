@@ -6,8 +6,6 @@ SVGEditor.Path = Class.extend({
     var _path = this;
  
     _svg = _svg || d3.select('svg');
- 
-    _path.bbox = _path.el.getBBox();
   
     _path.Editor = {};
 
@@ -26,23 +24,34 @@ SVGEditor.Path = Class.extend({
     }
 
 
-    _path.Editor.initBbox = function() {
+    _path.Editor.updateBbox = function() {
+ 
+      _path.bbox = _path.el.getBBox();
 
-      // bbox rect  
-      _svg.select("g.control").append("rect")
-                             .attr("class", "bbox")
-                             .attr("x", _path.bbox.x)
-                             .attr("y", _path.bbox.y)
-                             .attr("width", _path.bbox.width)
-                             .attr("height", _path.bbox.height);
+      if (typeof _path.bboxEl == "undefined") {
+
+        _path.bboxEl = _svg.select("g.control").append("rect")
+                                               .attr("class", "bbox")
+                                               .attr("stroke", "#0ff")
+                                               .attr("stroke-width", 1)
+                                               .attr("fill", "none");
+
+      }
+
+      _path.bboxEl.attr("x", _path.bbox.x)
+                  .attr("y", _path.bbox.y)
+                  .attr("width", _path.bbox.width)
+                  .attr("height", _path.bbox.height);
 
     }
 
 
     _path.getPoints = function() {
+
       // strip whitespace (replace with commas) and split on command letters
       // as apparently spaces and commas are interchangable in SVG???
       var _commandStrings = _path.el.attributes.d.nodeValue.replace(/\s?([A-Za-z])\s/g,"$1").replace(/,?\s+/g,',').split(/(?=[LMCQZSTZlmcqzstz])/);
+
       return _commandStrings.map(function(d){
     
         var _command = { command: d[0] ,
@@ -64,23 +73,24 @@ SVGEditor.Path = Class.extend({
     }
 
 
-    _path.setPoints = function(points) {
+    _path.setPoints = function(_points) {
 
       var d = "",
-          points = points || _path.points;
+          _points = _points || _path.points;
 
-      for (var i in points) {
+      for (var i in _points) {
 
         var merged = [];
-        merged = merged.concat.apply(merged, points[i].points);
-        d += points[i].command + merged.join(',');
+        merged = merged.concat.apply(merged, _points[i].points);
+        d += _points[i].command + merged.join(',');
 
       }
+
       d3.select(_path.el).attr("d", d);
       
     }
 
-    _path.Editor.initBbox();
+    _path.Editor.updateBbox();
     _path.points = _path.getPoints();
     _path.Editor.initHandles();
 
