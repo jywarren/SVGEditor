@@ -67,6 +67,7 @@ SVGEditor = {};
   };
 })();
 
+
 SVGEditor.Handle = Class.extend({
 
   init: function(_parent, _svg, _command, index) {
@@ -78,13 +79,18 @@ SVGEditor.Handle = Class.extend({
     _handle.width = 7;
 
     var _cmd = _command.command;
+
+    //_handle.setBezierPoints = function() {
+
+    //}
   
     if (_cmd.toUpperCase() == "Z") {
   
-      // connect to first point again; we may not need to do anything here
+      // SVG command to connect to first point again; we may not need to do anything here
   
     } else {
 
+      // last coord pair is our base point
       var x = _command.points[_command.points.length-1][0],
           y = _command.points[_command.points.length-1][1];
   
@@ -93,7 +99,7 @@ SVGEditor.Handle = Class.extend({
         x += +_last[0];
         y += +_last[1];
       }
-    
+
       // detect bezier
       if (_cmd.toUpperCase() == "C" || _cmd.toUpperCase() == "Q") {
   
@@ -108,33 +114,33 @@ SVGEditor.Handle = Class.extend({
               y2 = _command.points[1][1];
         }
     
-        if (_last > 0 && _cmd.toUpperCase() != _cmd) {
+        if (_last && _cmd.toUpperCase() != _cmd) {
           x1 += +_last[0];
           y1 += +_last[1];
           x2 += +_last[0];
           y2 += +_last[1];
         }
         
-        _svg.select("g.control").append("circle")
+        _handle.x1 = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
                                .attr("cx", x1)
                                .attr("cy", y1)
                                .attr("r", _handle.width / 2);
     
-        _svg.select("g.control").append("line")
+        _handle.x1Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
                                .attr("x1", x)
                                .attr("y1", y)
                                .attr("x2", x1)
                                .attr("y2", y1)
     
-        _svg.select("g.control").append("circle")
+        _handle.x2 = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
                                .attr("cx", x2)
                                .attr("cy", y2)
                                .attr("r", _handle.width / 2);
     
-        _svg.select("g.control").append("line")
+        _handle.x2Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
                                .attr("x1", x)
                                .attr("y1", y)
@@ -169,11 +175,6 @@ SVGEditor.Handle = Class.extend({
                               .attr("stroke", "#0ff")
                               .attr("stroke-width", 1)
                               .attr("fill", "rgba(255,255,255,0.25)");
-  
-      _svg.select("g.control").selectAll("rect.bbox")
-                              .attr("stroke", "#0ff")
-                              .attr("stroke-width", 1)
-                              .attr("fill", "none");
 
     }
 
@@ -183,12 +184,10 @@ SVGEditor.Handle = Class.extend({
   
       _svg.select("g.control").selectAll("rect,circle")
                               .on("mouseover", function() {
-                                d3.select(this).attr("stroke", "#22f")
-                                               .attr("stroke-width", 2);
+                                d3.select(this).attr("stroke", "#f0f");
                               })
                               .on("mouseout", function() {
-                                d3.select(this).attr("stroke", "#888")
-                                               .attr("stroke-width", 1);
+                                d3.select(this).attr("stroke", "#0ff");
                               });
 
       // drag events:
@@ -197,27 +196,86 @@ SVGEditor.Handle = Class.extend({
 
       drag.on("drag", function(d) {
 
-        d3.select(this).attr("x", d3.event.x)
-                       .attr("y", d3.event.y);
+        d3.select(this).attr("x", d3.event.x - _handle.width / 2)
+                       .attr("y", d3.event.y - _handle.width / 2);
 
         // adjust parent point to match
         var x = d3.event.x,
-            y = d3.event.y;
+            y = d3.event.y,
+            _command = _parent.points[_handle.index].command,
+            _points = _parent.points[_handle.index].points,
+            _basePoints = _points[_points.length-1];
 
-        _parent.points[_handle.index].points[0] = [x + _handle.width/2,
-                                                   y + _handle.width/2];
+        // overwrite last point - base point
+        _parent.points[_handle.index].points[_points.length-1] = [x,y];
 
-        // if it's lower case, add relative offsets from last point
-        if (_parent.points[_handle.index].command.toLowerCase() == _parent.points[_handle.index].command) {
-          _parent.points[_handle.index].points[0][0] += _last[0];
-          _parent.points[_handle.index].points[0][1] += _last[1];
+        var adjustRelative = function(points) {
+          return [ points[0] + _last[0], points[1] + _last[1] ];
         }
 
-        // convert to absolute; if not preferred, then we could use _last
-        //_parent.points[_handle.index].command = _parent.points[_handle.index].command.toUpperCase();
+        if (_points.length > 1) {
 
-        _parent.setPoints();
+          // DRY THIS UP & move it into SVGEditor.BezierHandle.js
 
+          // update bezier handles
+
+          // overwrite x1,y1 point
+          var old = _handle.oldPoints.points[0];
+          var bx = old[0] + d3.event.dx;
+          var by = old[1] + d3.event.dy;
+          _parent.points[_handle.index].points[0] = [bx, by];
+
+          // adjust for relative coords
+          if (_last && _cmd.toUpperCase() != _cmd) {
+            bx += +_last[0];
+            by += +_last[1];
+          }
+
+          _handle.x1.attr("cx", bx)
+                    .attr("cy", by);
+
+          _handle.x1Line.attr("x1", x)
+                        .attr("y1", y)
+                        .attr("x2", bx)
+                        .attr("y2", by);
+ 
+          // overwrite x2,y2 point (and account for quadratics)
+          if (_cmd.toUpperCase() != "Q") old = _handle.oldPoints.points[1],
+          bx = old[0] + d3.event.dx,
+          by = old[1] + d3.event.dy;
+          if (_cmd.toUpperCase() != "Q") _parent.points[_handle.index].points[1] = [bx, by];
+
+          // adjust for relative coords
+          if (_last && _cmd.toUpperCase() != _cmd) {
+            bx += +_last[0];
+            by += +_last[1];
+          }
+
+          _handle.x2.attr("cx", bx)
+                    .attr("cy", by);
+
+          _handle.x2Line.attr("x1", x)
+                        .attr("y1", y)
+                        .attr("x2", bx)
+                        .attr("y2", by);
+
+        }
+
+        // if it's lower case, add relative offsets from last point
+        if (_command.toLowerCase() == _command) {
+          _parent.points[_handle.index].points.map(adjustRelative);
+        }
+
+        _parent.setPoints(_parent.points);
+
+      });
+
+      drag.on("dragend", function(d) {
+        _parent.Editor.updateBbox();
+      });
+
+      drag.on("dragstart", function(d) {
+        _handle.oldPoints = _parent.points[_handle.index];
       });
 
       _handle.el.call(drag);
@@ -241,8 +299,6 @@ SVGEditor.Path = Class.extend({
     var _path = this;
  
     _svg = _svg || d3.select('svg');
- 
-    _path.bbox = _path.el.getBBox();
   
     _path.Editor = {};
 
@@ -261,23 +317,34 @@ SVGEditor.Path = Class.extend({
     }
 
 
-    _path.Editor.initBbox = function() {
+    _path.Editor.updateBbox = function() {
+ 
+      _path.bbox = _path.el.getBBox();
 
-      // bbox rect  
-      _svg.select("g.control").append("rect")
-                             .attr("class", "bbox")
-                             .attr("x", _path.bbox.x)
-                             .attr("y", _path.bbox.y)
-                             .attr("width", _path.bbox.width)
-                             .attr("height", _path.bbox.height);
+      if (typeof _path.bboxEl == "undefined") {
+
+        _path.bboxEl = _svg.select("g.control").append("rect")
+                                               .attr("class", "bbox")
+                                               .attr("stroke", "#0ff")
+                                               .attr("stroke-width", 1)
+                                               .attr("fill", "none");
+
+      }
+
+      _path.bboxEl.attr("x", _path.bbox.x)
+                  .attr("y", _path.bbox.y)
+                  .attr("width", _path.bbox.width)
+                  .attr("height", _path.bbox.height);
 
     }
 
 
     _path.getPoints = function() {
+
       // strip whitespace (replace with commas) and split on command letters
       // as apparently spaces and commas are interchangable in SVG???
       var _commandStrings = _path.el.attributes.d.nodeValue.replace(/\s?([A-Za-z])\s/g,"$1").replace(/,?\s+/g,',').split(/(?=[LMCQZSTZlmcqzstz])/);
+
       return _commandStrings.map(function(d){
     
         var _command = { command: d[0] ,
@@ -299,23 +366,24 @@ SVGEditor.Path = Class.extend({
     }
 
 
-    _path.setPoints = function(points) {
+    _path.setPoints = function(_points) {
 
       var d = "",
-          points = points || _path.points;
+          _points = _points || _path.points;
 
-      for (var i in points) {
+      for (var i in _points) {
 
         var merged = [];
-        merged = merged.concat.apply(merged, points[i].points);
-        d += points[i].command + merged.join(',');
+        merged = merged.concat.apply(merged, _points[i].points);
+        d += _points[i].command + merged.join(',');
 
       }
+
       d3.select(_path.el).attr("d", d);
       
     }
 
-    _path.Editor.initBbox();
+    _path.Editor.updateBbox();
     _path.points = _path.getPoints();
     _path.Editor.initHandles();
 
@@ -325,13 +393,79 @@ SVGEditor.Path = Class.extend({
 
 SVGEditor.convert = function(_selector) {
 
-    //svg.selectAll('path')
-    var _paths = document.getElementsByTagName(_selector);
- 
-    for (var i = 0; i < _paths.length; i++) {
+  _selector = _selector || "path";
 
-      var _path = new SVGEditor.Path(_paths[i]);
- 
-    }
+  var _paths = d3.selectAll(_selector)[0]
+
+  for (var i = 0; i < _paths.length; i++) {
+
+    var _path = new SVGEditor.Path(_paths[i]);
+
+  }
+
+}
+
+// unfinished
+SVGEditor.init = function(_selector) {
+
+  _selector = _selector || "svg";
+
+  d3.select(_selector).on('click', function() {
+
+    // looking for base clicks to trigger deselect
+    console.log('clicked on svg el');
+
+  });
+
+}
+
+SVGEditor.save = function(_selector) {
+
+  _selector = _selector || "svg";
+
+  d3.select('g.control').remove();
+
+  var _svg = d3.select(_selector)[0][0].outerHTML;
+
+  d3.select('body').append("div")
+                   .attr("class", "save")
+                   .style({ 
+                     "position":   "absolute",
+                     "top":        "20%",
+                     "left":       "25%",
+                     "background": "white",
+                     "padding":    "30px",
+                     "width":      "50%"
+                   })
+                   .append("p")
+                   .html("Click to save your SVG:");
+
+  var name = prompt('Name your image', 'svg-editor.svg');
+
+  d3.select('div.save').append("p")
+                       .attr("class", "btns")
+                       .style({ 
+                         "text-align": "center",
+                       })
+                       .append("a")
+                       .style({ 
+                         "background": "#ccc",
+                         "padding":    "10px"
+                       })
+                       .attr("href", "data:image/svg+xml;utf8," + _svg)
+                       .attr("download", name)
+                       .html("Download");
+
+  d3.select('div.save p.btns').append("a")
+                         .style({ 
+                           "background": "#eee",
+                           "margin":     "0 10px",
+                           "padding":    "10px"
+                         })
+                         .html("Close")
+                         .on("click", function() {
+                           d3.select('div.save')
+                             .remove();
+                         });
 
 }
