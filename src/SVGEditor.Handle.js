@@ -44,7 +44,7 @@ SVGEditor.Handle = Class.extend({
               y2 = _command.points[1][1];
         }
     
-        if (_last > 0 && _cmd.toUpperCase() != _cmd) {
+        if (_last && _cmd.toUpperCase() != _cmd) {
           x1 += +_last[0];
           y1 += +_last[1];
           x2 += +_last[0];
@@ -114,11 +114,10 @@ SVGEditor.Handle = Class.extend({
   
       _svg.select("g.control").selectAll("rect,circle")
                               .on("mouseover", function() {
-                                d3.select(this).attr("stroke", "#22f");
+                                d3.select(this).attr("stroke", "#f0f");
                               })
                               .on("mouseout", function() {
-                                d3.select(this).attr("stroke", "#0ff")
-                                               .attr("stroke-width", 1);
+                                d3.select(this).attr("stroke", "#0ff");
                               });
 
       // drag events:
@@ -127,8 +126,8 @@ SVGEditor.Handle = Class.extend({
 
       drag.on("drag", function(d) {
 
-        d3.select(this).attr("x", d3.event.x)
-                       .attr("y", d3.event.y);
+        d3.select(this).attr("x", d3.event.x - _handle.width / 2)
+                       .attr("y", d3.event.y - _handle.width / 2);
 
         // adjust parent point to match
         var x = d3.event.x,
@@ -138,34 +137,63 @@ SVGEditor.Handle = Class.extend({
             _basePoints = _points[_points.length-1];
 
         // overwrite last point - base point
-        _parent.points[_handle.index].points[_points.length-1] = [x + _handle.width/2,
-                                                                  y + _handle.width/2];
+        _parent.points[_handle.index].points[_points.length-1] = [x,y];
 
         var adjustRelative = function(points) {
-          return [ points[0] += _last[0], points[1] += _last[1] ];
+          return [ points[0] + _last[0], points[1] + _last[1] ];
+        }
+
+        if (_points.length > 1) {
+
+          // DRY THIS UP & move it into SVGEditor.BezierHandle.js
+
+          // update bezier handles
+
+          // overwrite x1,y1 point
+          var old = _handle.oldPoints.points[0];
+          var bx = old[0] + d3.event.dx;
+          var by = old[1] + d3.event.dy;
+          _parent.points[_handle.index].points[0] = [bx, by];
+
+          // adjust for relative coords
+          if (_last && _cmd.toUpperCase() != _cmd) {
+            bx += +_last[0];
+            by += +_last[1];
+          }
+
+          _handle.x1.attr("cx", bx)
+                    .attr("cy", by);
+
+          _handle.x1Line.attr("x1", x)
+                        .attr("y1", y)
+                        .attr("x2", bx)
+                        .attr("y2", by);
+ 
+          // overwrite x2,y2 point (and account for quadratics)
+          if (_cmd.toUpperCase() != "Q") old = _handle.oldPoints.points[1],
+          bx = old[0] + d3.event.dx,
+          by = old[1] + d3.event.dy;
+          if (_cmd.toUpperCase() != "Q") _parent.points[_handle.index].points[1] = [bx, by];
+
+          // adjust for relative coords
+          if (_last && _cmd.toUpperCase() != _cmd) {
+            bx += +_last[0];
+            by += +_last[1];
+          }
+
+          _handle.x2.attr("cx", bx)
+                    .attr("cy", by);
+
+          _handle.x2Line.attr("x1", x)
+                        .attr("y1", y)
+                        .attr("x2", bx)
+                        .attr("y2", by);
+
         }
 
         // if it's lower case, add relative offsets from last point
         if (_command.toLowerCase() == _command) {
           _parent.points[_handle.index].points.map(adjustRelative);
-        }
-
-        if (_points.length > 1) {
-
-          // update bezier handles
-          var dx = x - _handle.oldPoints.points[_points.length-1][0],
-              dy = y - _handle.oldPoints.points[_points.length-1][1];
-
-          // overwrite x1,y1 point
-          var old1 = _handle.oldPoints.points[0];
-          _parent.points[_handle.index].points[0] = [old1[0] + d3.event.dx,
-                                                     old1[1] + d3.event.dy];
- 
-          // overwrite x2,y2 point
-          var old2 = _handle.oldPoints.points[1];
-          _parent.points[_handle.index].points[1] = [old2[0] + d3.event.dx,
-                                                     old2[1] + d3.event.dy];
-
         }
 
         _parent.setPoints(_parent.points);
