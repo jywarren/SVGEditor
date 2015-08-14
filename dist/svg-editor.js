@@ -155,7 +155,7 @@ SVGEditor.Handle = Class.extend({
                              .attr("y", y - _handle.width / 2)
                              .attr("width", _handle.width)
                              .attr("height", _handle.width);
-    
+
     }
 
     _handle.style = function() {
