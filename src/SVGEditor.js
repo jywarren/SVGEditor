@@ -4,6 +4,8 @@ SVGEditor.convert = function(_selector) {
 
   var _paths = d3.selectAll(_selector)[0]
 
+  SVGEditor.init();
+
   for (var i = 0; i < _paths.length; i++) {
 
     var _path = new SVGEditor.Path(_paths[i]);
@@ -12,7 +14,7 @@ SVGEditor.convert = function(_selector) {
 
 }
 
-// unfinished
+// Sets up an environment, which gets us zooming and such
 SVGEditor.init = function(_selector) {
 
   _selector = _selector || "svg";
@@ -24,6 +26,26 @@ SVGEditor.init = function(_selector) {
 
   });
 
+  var svgContent = d3.select(_selector).html();
+
+  d3.select(_selector).html('');
+
+  d3.select(_selector).append("g")
+                      .attr("class", "viewport");
+
+  d3.select("svg g").html(svgContent);
+
+}
+
+SVGEditor.scale = function(scale, _selector) {
+
+  d3.selectAll("g.viewport").attr("transform", "scale(" + scale + " " + scale + ")");
+
+  d3.selectAll("path").each(function(_path) {
+    // this doesn't work:
+    //_path.Editor.scale(scale);
+  });
+  
 }
 
 SVGEditor.save = function(_selector) {

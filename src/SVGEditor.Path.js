@@ -11,7 +11,7 @@ SVGEditor.Path = Class.extend({
 
     /* add a control elements group */ 
     // check if it exists already, or unique id it for this path only
-    _svg.append("g").attr("class", "control");
+    _svg.select("g.viewport").append("g").attr("class", "control");
 
 
     // this could be integrated into getPoints(), if each handle is not activated by default
@@ -88,6 +88,19 @@ SVGEditor.Path = Class.extend({
 
       d3.select(_path.el).attr("d", d);
       
+    }
+
+
+    _path.destroy = function() {
+
+      _path.el.remove();
+
+      _path.points.map(function(_point) {
+        _point.destroy();
+      });
+
+      _path.remove();
+
     }
 
     _path.Editor.updateBbox();
