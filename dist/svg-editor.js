@@ -70,13 +70,15 @@ SVGEditor = {};
 
 SVGEditor.Handle = Class.extend({
 
+  elements: [],
+  width: 7,
+
   init: function(_parent, _svg, _command, index) {
 
     var _last = _parent._lastPoint || false, // this'll need to be recalculated if any points are added or deleted
         _handle = this;
 
     _handle.index = index;
-    _handle.width = 7;
 
     var _cmd = _command.command;
 
@@ -126,6 +128,7 @@ SVGEditor.Handle = Class.extend({
                                .attr("cx", x1)
                                .attr("cy", y1)
                                .attr("r", _handle.width / 2);
+        _handle.elements.push(_handle.x1);
     
         _handle.x1Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
@@ -133,12 +136,14 @@ SVGEditor.Handle = Class.extend({
                                .attr("y1", y)
                                .attr("x2", x1)
                                .attr("y2", y1)
+        _handle.elements.push(_handle.x1Line);
     
         _handle.x2 = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
                                .attr("cx", x2)
                                .attr("cy", y2)
                                .attr("r", _handle.width / 2);
+        _handle.elements.push(_handle.x2);
     
         _handle.x2Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
@@ -146,7 +151,8 @@ SVGEditor.Handle = Class.extend({
                                .attr("y1", y)
                                .attr("x2", x2)
                                .attr("y2", y2)
-    
+        _handle.elements.push(_handle.x2Line);
+
       }
   
       // store absolute positions for next relative
@@ -161,6 +167,8 @@ SVGEditor.Handle = Class.extend({
                              .attr("y", y - _handle.width / 2)
                              .attr("width", _handle.width)
                              .attr("height", _handle.width);
+
+      _handle.elements.push(_handle.el);
 
     }
 
@@ -266,12 +274,12 @@ SVGEditor.Handle = Class.extend({
           _parent.points[_handle.index].points.map(adjustRelative);
         }
 
+        _parent.Editor.updateBbox();
         _parent.setPoints(_parent.points);
 
       });
 
       drag.on("dragend", function(d) {
-        _parent.Editor.updateBbox();
       });
 
       drag.on("dragstart", function(d) {
@@ -286,6 +294,26 @@ SVGEditor.Handle = Class.extend({
     }
 
     _handle.eventSetup();
+
+    _handle.destroy = function() {
+
+      _handle.elements.map(function(el) {
+
+        el.remove();
+
+      });
+
+    }
+
+    _handle.scale = function(scale) {
+
+      var width = el.attr("width");
+      var height = el.attr("height");
+
+      _andle.el.attr("height", height/scale)
+               .attr("width", width/scale);
+
+    }
 
   }
 
@@ -304,7 +332,7 @@ SVGEditor.Path = Class.extend({
 
     /* add a control elements group */ 
     // check if it exists already, or unique id it for this path only
-    _svg.append("g").attr("class", "control");
+    _svg.select("g.viewport").append("g").attr("class", "control");
 
 
     // this could be integrated into getPoints(), if each handle is not activated by default
@@ -383,6 +411,19 @@ SVGEditor.Path = Class.extend({
       
     }
 
+
+    _path.destroy = function() {
+
+      _path.el.remove();
+
+      _path.points.map(function(_point) {
+        _point.destroy();
+      });
+
+      _path.remove();
+
+    }
+
     _path.Editor.updateBbox();
     _path.points = _path.getPoints();
     _path.Editor.initHandles();
@@ -397,6 +438,8 @@ SVGEditor.convert = function(_selector) {
 
   var _paths = d3.selectAll(_selector)[0]
 
+  SVGEditor.init();
+
   for (var i = 0; i < _paths.length; i++) {
 
     var _path = new SVGEditor.Path(_paths[i]);
@@ -405,7 +448,7 @@ SVGEditor.convert = function(_selector) {
 
 }
 
-// unfinished
+// Sets up an environment, which gets us zooming and such
 SVGEditor.init = function(_selector) {
 
   _selector = _selector || "svg";
@@ -417,6 +460,26 @@ SVGEditor.init = function(_selector) {
 
   });
 
+  var svgContent = d3.select(_selector).html();
+
+  d3.select(_selector).html('');
+
+  d3.select(_selector).append("g")
+                      .attr("class", "viewport");
+
+  d3.select("svg g").html(svgContent);
+
+}
+
+SVGEditor.scale = function(scale, _selector) {
+
+  d3.selectAll("g.viewport").attr("transform", "scale(" + scale + " " + scale + ")");
+
+  d3.selectAll("path").each(function(_path) {
+    // this doesn't work:
+    //_path.Editor.scale(scale);
+  });
+  
 }
 
 SVGEditor.save = function(_selector) {

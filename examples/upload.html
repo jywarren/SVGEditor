@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    
+    <title>SVGEditor</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="../node_modules/d3/d3.min.js"></script>
+    <script src="../dist/svg-editor.js"></script>
+    <link href="../dist/svg-editor.css" rel="stylesheet">
+
+    <script>
+
+      var svgEditor;
+  
+      window.onload = function() {
+
+        d3.select("#file-select input").on("change", function() {
+ 
+          var reader = new FileReader()//,
+              f = d3.event.target.files[0];
+
+          // Closure to capture the file information.
+          reader.onload = (function(file) {
+  
+            return function(e) {
+
+              d3.select('#upload').html(e.target.result);
+
+              d3.selectAll('path').on('mouseup',function(e){
+             
+                new SVGEditor.Path(this);
+             
+              });
+  
+            }
+
+          })(f);
+ 
+          // Read in the image file as a data URL.
+          reader.readAsText(f);
+
+        });
+
+      }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <p><a onClick="SVGEditor.save()">Export</a></p>
+
+    <div id="upload"></div>
+
+    <span id="file-select" class="upload"><input type="file" /></span>
+
+  </body>
+</html>

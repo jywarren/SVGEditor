@@ -1,12 +1,14 @@
 SVGEditor.Handle = Class.extend({
 
+  elements: [],
+  width: 7,
+
   init: function(_parent, _svg, _command, index) {
 
     var _last = _parent._lastPoint || false, // this'll need to be recalculated if any points are added or deleted
         _handle = this;
 
     _handle.index = index;
-    _handle.width = 7;
 
     var _cmd = _command.command;
 
@@ -56,6 +58,7 @@ SVGEditor.Handle = Class.extend({
                                .attr("cx", x1)
                                .attr("cy", y1)
                                .attr("r", _handle.width / 2);
+        _handle.elements.push(_handle.x1);
     
         _handle.x1Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
@@ -63,12 +66,14 @@ SVGEditor.Handle = Class.extend({
                                .attr("y1", y)
                                .attr("x2", x1)
                                .attr("y2", y1)
+        _handle.elements.push(_handle.x1Line);
     
         _handle.x2 = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
                                .attr("cx", x2)
                                .attr("cy", y2)
                                .attr("r", _handle.width / 2);
+        _handle.elements.push(_handle.x2);
     
         _handle.x2Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
@@ -76,7 +81,8 @@ SVGEditor.Handle = Class.extend({
                                .attr("y1", y)
                                .attr("x2", x2)
                                .attr("y2", y2)
-    
+        _handle.elements.push(_handle.x2Line);
+
       }
   
       // store absolute positions for next relative
@@ -91,6 +97,8 @@ SVGEditor.Handle = Class.extend({
                              .attr("y", y - _handle.width / 2)
                              .attr("width", _handle.width)
                              .attr("height", _handle.width);
+
+      _handle.elements.push(_handle.el);
 
     }
 
@@ -196,12 +204,12 @@ SVGEditor.Handle = Class.extend({
           _parent.points[_handle.index].points.map(adjustRelative);
         }
 
+        _parent.Editor.updateBbox();
         _parent.setPoints(_parent.points);
 
       });
 
       drag.on("dragend", function(d) {
-        _parent.Editor.updateBbox();
       });
 
       drag.on("dragstart", function(d) {
@@ -216,6 +224,26 @@ SVGEditor.Handle = Class.extend({
     }
 
     _handle.eventSetup();
+
+    _handle.destroy = function() {
+
+      _handle.elements.map(function(el) {
+
+        el.remove();
+
+      });
+
+    }
+
+    _handle.scale = function(scale) {
+
+      var width = el.attr("width");
+      var height = el.attr("height");
+
+      _andle.el.attr("height", height/scale)
+               .attr("width", width/scale);
+
+    }
 
   }
 
