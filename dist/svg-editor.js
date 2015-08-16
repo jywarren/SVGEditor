@@ -68,15 +68,137 @@ SVGEditor = {};
 })();
 
 
+SVGEditor.Environment = Class.extend({
+
+  // Sets up an environment, which gets us zooming and such
+  init: function(_selector) {
+
+    _selector = _selector || "svg";
+
+    d3.select(_selector).on('click', function() {
+
+      // looking for base clicks to trigger deselect
+      // but this'll involve allowing event to bubble up through objects
+      console.log('clicked on svg el');
+
+    });
+
+    var svgContent = d3.select(_selector).html();
+
+    d3.select(_selector).html('');
+
+    d3.select(_selector).append("g")
+                        .attr("class", "viewport");
+
+    d3.select("g.viewport").append("g")
+                           .attr("class", "content");
+
+    d3.select("g.viewport").append("g")
+                           .attr("class", "control");
+
+    d3.select("g.content").html(svgContent);
+
+    d3.selectAll('line,path,polyline').on('mouseover', function() { 
+      d3.select(this).attr('orig-stroke-width', d3.select(this).attr('stroke-width'))
+                     .style('stroke-width', 3);
+    })
+    .on('mouseout',  function() { 
+      d3.select(this).style('stroke-width', d3.select(this).attr('orig-stroke-width'));
+    });
+
+  },
+
+  // convert elements with given selector to SVGEditor primitives
+  convert: function(_selector) {
+
+    _selector = _selector || "path";
+ 
+    var _paths = d3.selectAll(_selector)[0]
+ 
+    var svgEditor = new SVGEditor.Environment();
+ 
+    for (var i = 0; i < _paths.length; i++) {
+ 
+      var _path = new SVGEditor.Path(_paths[i]);
+ 
+    }
+
+  },
+
+  scale: function(scale, _selector) {
+
+    d3.selectAll("g.viewport").attr("transform", "scale(" + scale + " " + scale + ")");
+ 
+    d3.selectAll("path").each(function(_path) {
+      // this doesn't work:
+      //_path.Editor.scale(scale);
+    });
+  
+  },
+
+  save: function(_selector) {
+
+    _selector = _selector || "svg";
+ 
+    d3.select('g.control').remove();
+ 
+    var _svg = d3.select(_selector)[0][0].outerHTML;
+ 
+    d3.select('body').append("div")
+                     .attr("class", "save")
+                     .style({ 
+                       "position":   "absolute",
+                       "top":        "20%",
+                       "left":       "25%",
+                       "background": "white",
+                       "padding":    "30px",
+                       "width":      "50%"
+                     })
+                     .append("p")
+                     .html("Click to save your SVG:");
+ 
+    var name = prompt('Name your image', 'svg-editor.svg');
+ 
+    d3.select('div.save').append("p")
+                         .attr("class", "btns")
+                         .style({ 
+                           "text-align": "center",
+                         })
+                         .append("a")
+                         .style({ 
+                           "background": "#ccc",
+                           "padding":    "10px"
+                         })
+                         .attr("href", "data:image/svg+xml;utf8," + _svg)
+                         .attr("download", name)
+                         .html("Download");
+ 
+    d3.select('div.save p.btns').append("a")
+                           .style({ 
+                             "background": "#eee",
+                             "margin":     "0 10px",
+                             "padding":    "10px"
+                           })
+                           .html("Close")
+                           .on("click", function() {
+                             d3.select('div.save')
+                               .remove();
+                           });
+
+  }
+
+});
+
 SVGEditor.Handle = Class.extend({
 
   elements: [],
   width: 7,
 
-  init: function(_parent, _svg, _command, index) {
+  init: function(_parent, _command, index) {
 
     var _last = _parent._lastPoint || false, // this'll need to be recalculated if any points are added or deleted
-        _handle = this;
+        _handle = this,
+        _svg = _parent.svg;
 
     _handle.index = index;
 
@@ -155,9 +277,8 @@ SVGEditor.Handle = Class.extend({
 
       }
   
-      // store absolute positions for next relative
-      // we could use a select() to be cleaner,
-      // but it might be more inefficient
+      // we should clean this up. Maybe it can be stored inside Handle 
+      // and updated and bubbled down on getPoints 
       _parent._lastPoint = [x,y];
 
       // handle rect  
@@ -319,39 +440,39 @@ SVGEditor.Handle = Class.extend({
 
 });
 
-SVGEditor.Path = Class.extend({
+SVGEditor.Primitive = Class.extend({
 
-  init: function(_element,_svg) {
+  init: function(_element, _svg) {
 
     this.el = _element;
-    var _path = this;
+    var _primitive = this;
  
-    _svg = _svg || d3.select('svg');
+    _primitive.svg = _svg || d3.select('svg');
+    _svg = _primitive.svg;
   
-    _path.Editor = {};
+    _primitive.Editor = {};
 
     /* add a control elements group */ 
     // check if it exists already, or unique id it for this path only
-    _svg.select("g.viewport").append("g").attr("class", "control");
+    _primitive.svg.select("g.viewport").append("g").attr("class", "control");
 
 
-    // this could be integrated into getPoints(), if each handle is not activated by default
-    _path.Editor.initHandles = function() {
+    // Need to standardize/abstract Handles to reference a standard upstream Object.points
+    _primitive.Editor.initHandles = function() {
 
-      _path.Editor.handles = _path.points.map(function(cmd, j) {
-        return new SVGEditor.Handle(_path, _svg, cmd, j);
+      _primitive.Editor.handles = _primitive.points.map(function(point, index) {
+        return new SVGEditor.Handle(_primitive, point, index);
       });
       
     }
 
-
-    _path.Editor.updateBbox = function() {
+    _primitive.Editor.updateBbox = function() {
  
-      _path.bbox = _path.el.getBBox();
+      _primitive.bbox = _primitive.el.getBBox();
 
-      if (typeof _path.bboxEl == "undefined") {
+      if (typeof _primitive.bboxEl == "undefined") {
 
-        _path.bboxEl = _svg.select("g.control").append("rect")
+        _primitive.bboxEl = _svg.select("g.control").append("rect")
                                                .attr("class", "bbox")
                                                .attr("stroke", "#0ff")
                                                .attr("stroke-width", 1)
@@ -359,12 +480,92 @@ SVGEditor.Path = Class.extend({
 
       }
 
-      _path.bboxEl.attr("x", _path.bbox.x)
-                  .attr("y", _path.bbox.y)
-                  .attr("width", _path.bbox.width)
-                  .attr("height", _path.bbox.height);
+      _primitive.bboxEl.attr("x", _primitive.bbox.x)
+                  .attr("y", _primitive.bbox.y)
+                  .attr("width", _primitive.bbox.width)
+                  .attr("height", _primitive.bbox.height);
 
     }
+
+  }
+
+});
+
+SVGEditor.Line = SVGEditor.Primitive.extend({
+
+  init: function(_element, _svg) {
+
+    this._super(_element, _svg);
+
+    this.el = _element;
+    var _line = this;
+    _svg = _line.svg = _svg || d3.select('svg');
+
+    _line.getPoints = function() {
+
+      var _attributes = [['x1', 'y1'], ['x2', 'y2']],
+          _points = [];
+
+      // use initial Path type start code
+      var _code = "M";
+
+      for (var i in _attributes) {
+
+        var px = d3.select(_line.el).attr(_attributes[i][0]),
+            py = d3.select(_line.el).attr(_attributes[i][1]);
+    
+        var _point = { command: _code,
+                       points: [[px, py]] };
+
+        // set subsequent points to Path Line command;
+        // if this is a Polygon instead of a Polyline, the final point will close the poly
+        _code = "L";
+
+        _points.push(_point);
+
+      }
+      return _points;
+
+    }
+
+
+    _line.setPoints = function(_points) {
+
+      var x1 = _points[0].points[0][0],
+          y1 = _points[0].points[0][1],
+          x2 = _points[1].points[0][0],
+          y2 = _points[1].points[0][1];
+
+      d3.select(_line.el).attr("x1", x1)
+                         .attr("y1", y1)
+                         .attr("x2", x2)
+                         .attr("y2", y2);
+      
+    }
+
+
+    _line.Editor.updateBbox = function() {
+
+      // do nothing; lines have no bboxes
+
+    }
+
+    _line.points = _line.getPoints();
+    _line.Editor.initHandles();
+
+  }
+
+});
+
+SVGEditor.Path = SVGEditor.Primitive.extend({
+
+  init: function(_element, _svg) {
+
+    this._super(_element, _svg);
+
+    this.el = _element;
+    var _path = this;
+    _svg = _path.svg = _svg || d3.select('svg');
 
 
     _path.getPoints = function() {
@@ -432,103 +633,63 @@ SVGEditor.Path = Class.extend({
 
 });
 
-SVGEditor.convert = function(_selector) {
+SVGEditor.Polyline = SVGEditor.Path.extend({
 
-  _selector = _selector || "path";
+  init: function(_element, _svg) {
 
-  var _paths = d3.selectAll(_selector)[0]
+    this._super(_element, _svg);
 
-  SVGEditor.init();
+    this.el = _element;
+    var _polyline = this;
+    _svg = _polyline.svg = _svg || d3.select('svg');
 
-  for (var i = 0; i < _paths.length; i++) {
 
-    var _path = new SVGEditor.Path(_paths[i]);
+    // <polyline fill="none" stroke="#ED1C24" points="87.958,663.434 57.892,693.498 17.804,653.41 47.87,623.346 87.958,521.701                             
+    _polyline.getPoints = function() {
+
+      // strip whitespace (replace with commas) and split on command letters
+      // as apparently spaces and commas are interchangable in SVG???
+      var _points = d3.select(_polyline.el).attr("d").split(" ");
+
+      // use initial Path type start code
+      var _code = "M";
+
+      return _points.map(function(p){
+    
+        var _point = { command: _code,
+                       points: [p.split(',')] };
+
+        // set subsequent points to Path Line command;
+        // if this is a Polygon instead of a Polyline, the final point will close the poly
+        _code = "L";
+
+        return _point;
+
+      });
+    }
+
+
+    _polyline.setPoints = function(_points) {
+
+      var _attr = "",
+          _points = _points || _polyline.points;
+
+      for (var i in _points) {
+
+        if (i > 0) _attr += " ";
+        _attr += _points.points[0].join(',');
+
+      }
+
+      d3.select(_polyline.el).attr("points", _attr);
+      
+    }
+
+
+    _polyline.Editor.updateBbox();
+    _polyline.points = _polyline.getPoints();
+    _polyline.Editor.initHandles();
 
   }
 
-}
-
-// Sets up an environment, which gets us zooming and such
-SVGEditor.init = function(_selector) {
-
-  _selector = _selector || "svg";
-
-  d3.select(_selector).on('click', function() {
-
-    // looking for base clicks to trigger deselect
-    console.log('clicked on svg el');
-
-  });
-
-  var svgContent = d3.select(_selector).html();
-
-  d3.select(_selector).html('');
-
-  d3.select(_selector).append("g")
-                      .attr("class", "viewport");
-
-  d3.select("svg g").html(svgContent);
-
-}
-
-SVGEditor.scale = function(scale, _selector) {
-
-  d3.selectAll("g.viewport").attr("transform", "scale(" + scale + " " + scale + ")");
-
-  d3.selectAll("path").each(function(_path) {
-    // this doesn't work:
-    //_path.Editor.scale(scale);
-  });
-  
-}
-
-SVGEditor.save = function(_selector) {
-
-  _selector = _selector || "svg";
-
-  d3.select('g.control').remove();
-
-  var _svg = d3.select(_selector)[0][0].outerHTML;
-
-  d3.select('body').append("div")
-                   .attr("class", "save")
-                   .style({ 
-                     "position":   "absolute",
-                     "top":        "20%",
-                     "left":       "25%",
-                     "background": "white",
-                     "padding":    "30px",
-                     "width":      "50%"
-                   })
-                   .append("p")
-                   .html("Click to save your SVG:");
-
-  var name = prompt('Name your image', 'svg-editor.svg');
-
-  d3.select('div.save').append("p")
-                       .attr("class", "btns")
-                       .style({ 
-                         "text-align": "center",
-                       })
-                       .append("a")
-                       .style({ 
-                         "background": "#ccc",
-                         "padding":    "10px"
-                       })
-                       .attr("href", "data:image/svg+xml;utf8," + _svg)
-                       .attr("download", name)
-                       .html("Download");
-
-  d3.select('div.save p.btns').append("a")
-                         .style({ 
-                           "background": "#eee",
-                           "margin":     "0 10px",
-                           "padding":    "10px"
-                         })
-                         .html("Close")
-                         .on("click", function() {
-                           d3.select('div.save')
-                             .remove();
-                         });
-
-}
+});

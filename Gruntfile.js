@@ -23,7 +23,10 @@ module.exports = function(grunt) {
             dist: {
                 src: [
                     'src/core/Class.js',
-                    'src/*.js'
+                    'src/*.js',
+                    'src/primitives/Line.js',
+                    'src/primitives/Path.js',
+                    'src/primitives/Polyline.js'
                 ],
                 dest: 'dist/svg-editor.js',
             }
