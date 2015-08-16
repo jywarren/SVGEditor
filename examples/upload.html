@@ -28,9 +28,23 @@
 
               d3.select('#upload').html(e.target.result);
 
+              svgEditor = new SVGEditor.Environment();
+
               d3.selectAll('path').on('mouseup',function(e){
              
                 new SVGEditor.Path(this);
+             
+              });
+
+              d3.selectAll('line').on('mouseup',function(e){
+             
+                new SVGEditor.Line(this);
+             
+              });
+
+              d3.selectAll('polyline').on('mouseup',function(e){
+             
+                new SVGEditor.Polyline(this);
              
               });
   
@@ -51,7 +65,7 @@
 
   <body>
 
-    <p><a onClick="SVGEditor.save()">Export</a></p>
+    <p><a onClick="svgEditor.save()">Export</a></p>
 
     <div id="upload"></div>
 

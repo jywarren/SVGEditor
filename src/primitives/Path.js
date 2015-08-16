@@ -1,49 +1,12 @@
-SVGEditor.Path = Class.extend({
+SVGEditor.Path = SVGEditor.Primitive.extend({
 
-  init: function(_element,_svg) {
+  init: function(_element, _svg) {
+
+    this._super(_element, _svg);
 
     this.el = _element;
     var _path = this;
- 
-    _svg = _svg || d3.select('svg');
-  
-    _path.Editor = {};
-
-    /* add a control elements group */ 
-    // check if it exists already, or unique id it for this path only
-    _svg.select("g.viewport").append("g").attr("class", "control");
-
-
-    // this could be integrated into getPoints(), if each handle is not activated by default
-    _path.Editor.initHandles = function() {
-
-      _path.Editor.handles = _path.points.map(function(cmd, j) {
-        return new SVGEditor.Handle(_path, _svg, cmd, j);
-      });
-      
-    }
-
-
-    _path.Editor.updateBbox = function() {
- 
-      _path.bbox = _path.el.getBBox();
-
-      if (typeof _path.bboxEl == "undefined") {
-
-        _path.bboxEl = _svg.select("g.control").append("rect")
-                                               .attr("class", "bbox")
-                                               .attr("stroke", "#0ff")
-                                               .attr("stroke-width", 1)
-                                               .attr("fill", "none");
-
-      }
-
-      _path.bboxEl.attr("x", _path.bbox.x)
-                  .attr("y", _path.bbox.y)
-                  .attr("width", _path.bbox.width)
-                  .attr("height", _path.bbox.height);
-
-    }
+    _svg = _path.svg = _svg || d3.select('svg');
 
 
     _path.getPoints = function() {

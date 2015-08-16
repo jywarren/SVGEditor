@@ -3,10 +3,11 @@ SVGEditor.Handle = Class.extend({
   elements: [],
   width: 7,
 
-  init: function(_parent, _svg, _command, index) {
+  init: function(_parent, _command, index) {
 
     var _last = _parent._lastPoint || false, // this'll need to be recalculated if any points are added or deleted
-        _handle = this;
+        _handle = this,
+        _svg = _parent.svg;
 
     _handle.index = index;
 
@@ -85,9 +86,8 @@ SVGEditor.Handle = Class.extend({
 
       }
   
-      // store absolute positions for next relative
-      // we could use a select() to be cleaner,
-      // but it might be more inefficient
+      // we should clean this up. Maybe it can be stored inside Handle 
+      // and updated and bubbled down on getPoints 
       _parent._lastPoint = [x,y];
 
       // handle rect  
