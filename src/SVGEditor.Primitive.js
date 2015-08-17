@@ -4,6 +4,8 @@ SVGEditor.Primitive = Class.extend({
 
     this.el = _element;
     var _primitive = this;
+
+    console.log(this.el.localName);
  
     _primitive.svg = _svg || d3.select('svg');
     _svg = _primitive.svg;
@@ -20,9 +22,9 @@ SVGEditor.Primitive = Class.extend({
 
       _primitive.Editor.handles = [];
 
-      for (var i in _primitive.points) {
+      for (var _primitivePointIndex in _primitive.points) {
 
-        _primitive.Editor.handles.push(new SVGEditor.Handle(_primitive, _primitive.points[i], i));
+        _primitive.Editor.handles.push(new SVGEditor.Handle(_primitive, _primitive.points[_primitivePointIndex], _primitivePointIndex));
 
       }
 

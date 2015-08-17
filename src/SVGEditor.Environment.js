@@ -1,15 +1,20 @@
 SVGEditor.Environment = Class.extend({
 
+  tools: {},
+  primitives: [],
+
   // Sets up an environment, which gets us zooming and such
   init: function(_selector) {
 
+    var _env = this;
     _selector = _selector || "svg";
 
     d3.select(_selector).on('click', function() {
 
       // looking for base clicks to trigger deselect
-      // but this'll involve allowing event to bubble up through objects
-      console.log('clicked on svg el');
+      //_env.primitives.forEach(function(_primitive) {
+      //  if (_this != _primitive.el) _primitive.deselect();
+      //});
 
     });
 
@@ -39,31 +44,34 @@ SVGEditor.Environment = Class.extend({
       console.log(typeof this);
     });
 
-  },
+    // add tools here:
+    _env.tools.pointEditor = new SVGEditor.PointEditor();
 
-  clickable: function() {
 
-    d3.selectAll('line').each(function(e,i){
-      console.log('line');
-      new SVGEditor.Line(d3.select(this)[0][0]);
-    });
+    _env.clickable = function() {
+ 
+      d3.selectAll('line').each(function(e,i){
+        _env.primitives.push(new SVGEditor.Line(d3.select(this)[0][0]));
+      });
+ 
+      d3.selectAll('path').each(function(e,i){
+        _env.primitives.push(new SVGEditor.Path(d3.select(this)[0][0]));
+      });
+ 
+      d3.selectAll('polygon').each(function(e,i){
+        _env.primitives.push(new SVGEditor.Polyline(d3.select(this)[0][0]));
+      });
+ 
+      d3.selectAll('polyline').each(function(e,i){
+        // temporary until polygon is made based on polyline
+        _env.primitives.push(new SVGEditor.Polyline(d3.select(this)[0][0]));
+      });
 
-    d3.selectAll('path').each(function(e,i){
-      console.log('path');
-      new SVGEditor.Path(d3.select(this)[0][0]);
-    });
+      // make tools aware of primitives here, 
+      // although there should be some kind of tool selection system 
+      _env.tools.pointEditor.add(_env.primitives);
 
-    d3.selectAll('polyline').each(function(e,i){
-      console.log('polyline');
-      // temporary until polygon is made based on polyline
-      new SVGEditor.Polyline(d3.select(this)[0][0]);
-    });
-
-    d3.selectAll('polygon').each(function(e,i){
-      console.log('polygon');
-      // temporary until polygon is made based on polyline
-      new SVGEditor.Polyline(d3.select(this)[0][0]);
-    });
+    }
 
   },
 
@@ -76,9 +84,9 @@ SVGEditor.Environment = Class.extend({
  
     var svgEditor = new SVGEditor.Environment();
  
-    for (var i = 0; i < _paths.length; i++) {
+    for (var _pathConvertIndex = 0; _pathConvertIndex < _paths.length; _pathConvertIndex++) {
  
-      var _path = new SVGEditor.Path(_paths[i]);
+      var _path = new SVGEditor.Path(_paths[_pathConvertIndex]);
  
     }
 

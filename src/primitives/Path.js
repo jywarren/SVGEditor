@@ -38,9 +38,9 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
           } else {
 
-            for (var j = 0; j < pointsArray.length; j += 2) {
+            for (var _pointsArrayIndex = 0; _pointsArrayIndex < pointsArray.length; _pointsArrayIndex += 2) {
            
-              _command.points.push([+pointsArray[j], +pointsArray[j+1]]);
+              _command.points.push([+pointsArray[_pointsArrayIndex], +pointsArray[_pointsArrayIndex+1]]);
            
             }
 
@@ -54,16 +54,16 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
     }
 
 
-    _path.setPoints = function(_points) {
+    _path.setPoints = function(_pathPoints) {
 
       var d = "",
-          _points = _points || _path.points;
+          _pathPoints = _pathPoints || _path.points;
 
-      for (var i in _points) {
+      for (var _pointIndex in _pathPoints) {
 
         var merged = [];
-        merged = merged.concat.apply(merged, _points[i].points);
-        d += _points[i].command + merged.join(',');
+        merged = merged.concat.apply(merged, _pathPoints[_pointIndex].points);
+        d += _pathPoints[_pointIndex].command + merged.join(',');
 
       }
 
