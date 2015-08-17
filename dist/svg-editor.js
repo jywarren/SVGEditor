@@ -102,8 +102,37 @@ SVGEditor.Environment = Class.extend({
       d3.select(this).attr('orig-stroke-width', d3.select(this).attr('stroke-width'))
                      .style('stroke-width', 3);
     })
-    .on('mouseout',  function() { 
+    .on('mouseout', function() { 
       d3.select(this).style('stroke-width', d3.select(this).attr('orig-stroke-width'));
+    })
+    .on('click', function() {
+      console.log(typeof this);
+    });
+
+  },
+
+  clickable: function() {
+
+    d3.selectAll('line').each(function(e,i){
+      console.log('line');
+      new SVGEditor.Line(d3.select(this)[0][0]);
+    });
+
+    d3.selectAll('path').each(function(e,i){
+      console.log('path');
+      new SVGEditor.Path(d3.select(this)[0][0]);
+    });
+
+    d3.selectAll('polyline').each(function(e,i){
+      console.log('polyline');
+      // temporary until polygon is made based on polyline
+      new SVGEditor.Polyline(d3.select(this)[0][0]);
+    });
+
+    d3.selectAll('polygon').each(function(e,i){
+      console.log('polygon');
+      // temporary until polygon is made based on polyline
+      new SVGEditor.Polyline(d3.select(this)[0][0]);
     });
 
   },
@@ -196,7 +225,7 @@ SVGEditor.Handle = Class.extend({
 
   init: function(_parent, _command, index) {
 
-    var _last = _parent._lastPoint || false, // this'll need to be recalculated if any points are added or deleted
+    var _last = _parent.lastHandle(index) || false, // this'll need to be recalculated if any points are added or deleted
         _handle = this,
         _svg = _parent.svg;
 
@@ -215,77 +244,74 @@ SVGEditor.Handle = Class.extend({
     } else {
 
       // last coord pair is our base point
-      var x = _command.points[_command.points.length-1][0],
-          y = _command.points[_command.points.length-1][1];
+      _handle.x = _command.points[_command.points.length-1][0],
+      _handle.y = _command.points[_command.points.length-1][1];
   
       // converts relative positions (based on last point) to absolute
       if (_last && _cmd.toUpperCase() != _cmd) {
-        x += +_last[0];
-        y += +_last[1];
+        _handle.x += _last.x;
+        _handle.y += _last.y;
       }
 
       // detect bezier
       if (_cmd.toUpperCase() == "C" || _cmd.toUpperCase() == "Q") {
   
-        var x1 = _command.points[0][0],
-            y1 = _command.points[0][1];
+        _handle.x1 = _command.points[0][0];
+        _handle.y1 = _command.points[0][1];
   
         if (_cmd.toUpperCase() == "Q") {
-          var x2 = _command.points[0][0],
-              y2 = _command.points[0][1];
+          _handle.x2 = _command.points[0][0];
+          _handle.y2 = _command.points[0][1];
         } else {
-          var x2 = _command.points[1][0],
-              y2 = _command.points[1][1];
+          _handle.x2 = _command.points[1][0];
+          _handle.y2 = _command.points[1][1];
         }
-    
+
+        // converts additional bezier points from relative to absolute 
         if (_last && _cmd.toUpperCase() != _cmd) {
-          x1 += +_last[0];
-          y1 += +_last[1];
-          x2 += +_last[0];
-          y2 += +_last[1];
+          _handle.x1 += +_last.x;
+          _handle.y1 += +_last.y;
+          _handle.x2 += +_last.x;
+          _handle.y2 += +_last.y;
         }
         
-        _handle.x1 = _svg.select("g.control").append("circle")
+        _handle.x1El = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
-                               .attr("cx", x1)
-                               .attr("cy", y1)
+                               .attr("cx", _handle.x1)
+                               .attr("cy", _handle.y1)
                                .attr("r", _handle.width / 2);
-        _handle.elements.push(_handle.x1);
+        _handle.elements.push(_handle.x1El);
     
         _handle.x1Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
-                               .attr("x1", x)
-                               .attr("y1", y)
-                               .attr("x2", x1)
-                               .attr("y2", y1)
+                               .attr("x1", _handle.x)
+                               .attr("y1", _handle.y)
+                               .attr("x2", _handle.x1)
+                               .attr("y2", _handle.y1)
         _handle.elements.push(_handle.x1Line);
     
-        _handle.x2 = _svg.select("g.control").append("circle")
+        _handle.x2El = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
-                               .attr("cx", x2)
-                               .attr("cy", y2)
+                               .attr("cx", _handle.x2)
+                               .attr("cy", _handle.y2)
                                .attr("r", _handle.width / 2);
-        _handle.elements.push(_handle.x2);
+        _handle.elements.push(_handle.x2El);
     
         _handle.x2Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
-                               .attr("x1", x)
-                               .attr("y1", y)
-                               .attr("x2", x2)
-                               .attr("y2", y2)
+                               .attr("x1", _handle.x)
+                               .attr("y1", _handle.y)
+                               .attr("x2", _handle.x2)
+                               .attr("y2", _handle.y2)
         _handle.elements.push(_handle.x2Line);
 
       }
-  
-      // we should clean this up. Maybe it can be stored inside Handle 
-      // and updated and bubbled down on getPoints 
-      _parent._lastPoint = [x,y];
 
       // handle rect  
       _handle.el = _svg.select("g.control").append("rect")
                              .attr("class", "handle")
-                             .attr("x", x - _handle.width / 2)
-                             .attr("y", y - _handle.width / 2)
+                             .attr("x", _handle.x - _handle.width / 2)
+                             .attr("y", _handle.y - _handle.width / 2)
                              .attr("width", _handle.width)
                              .attr("height", _handle.width);
 
@@ -339,8 +365,11 @@ SVGEditor.Handle = Class.extend({
         _parent.points[_handle.index].points[_points.length-1] = [x,y];
 
         var adjustRelative = function(points) {
-          return [ points[0] + _last[0], points[1] + _last[1] ];
+          return [ points[0] + _last.x, points[1] + _last.y ];
         }
+
+        // adjust next point if it's relative
+
 
         if (_points.length > 1) {
 
@@ -356,17 +385,19 @@ SVGEditor.Handle = Class.extend({
 
           // adjust for relative coords
           if (_last && _cmd.toUpperCase() != _cmd) {
-            bx += +_last[0];
-            by += +_last[1];
+            bx += +_last.x;
+            by += +_last.y;
           }
 
-          _handle.x1.attr("cx", bx)
-                    .attr("cy", by);
-
-          _handle.x1Line.attr("x1", x)
-                        .attr("y1", y)
-                        .attr("x2", bx)
-                        .attr("y2", by);
+          if (_handle.x1El) {
+            _handle.x1El.attr("cx", bx)
+                        .attr("cy", by);
+ 
+            _handle.x1Line.attr("x1", x)
+                          .attr("y1", y)
+                          .attr("x2", bx)
+                          .attr("y2", by);
+          }
  
           // overwrite x2,y2 point (and account for quadratics)
           if (_cmd.toUpperCase() != "Q") old = _handle.oldPoints.points[1],
@@ -376,17 +407,19 @@ SVGEditor.Handle = Class.extend({
 
           // adjust for relative coords
           if (_last && _cmd.toUpperCase() != _cmd) {
-            bx += +_last[0];
-            by += +_last[1];
+            bx += +_last.x;
+            by += +_last.y;
           }
 
-          _handle.x2.attr("cx", bx)
-                    .attr("cy", by);
-
-          _handle.x2Line.attr("x1", x)
-                        .attr("y1", y)
-                        .attr("x2", bx)
-                        .attr("y2", by);
+          if (_handle.x1El) {
+            _handle.x2El.attr("cx", bx)
+                        .attr("cy", by);
+           
+            _handle.x2Line.attr("x1", x)
+                          .attr("y1", y)
+                          .attr("x2", bx)
+                          .attr("y2", by);
+          }
 
         }
 
@@ -460,10 +493,14 @@ SVGEditor.Primitive = Class.extend({
     // Need to standardize/abstract Handles to reference a standard upstream Object.points
     _primitive.Editor.initHandles = function() {
 
-      _primitive.Editor.handles = _primitive.points.map(function(point, index) {
-        return new SVGEditor.Handle(_primitive, point, index);
-      });
-      
+      _primitive.Editor.handles = [];
+
+      for (var i in _primitive.points) {
+
+        _primitive.Editor.handles.push(new SVGEditor.Handle(_primitive, _primitive.points[i], i));
+
+      }
+
     }
 
     _primitive.Editor.updateBbox = function() {
@@ -487,7 +524,27 @@ SVGEditor.Primitive = Class.extend({
 
     }
 
-  }
+    _primitive.nextPoint = function(index) {
+      if (index == _primitive.points.length-1) return false;
+      else return _primitive.points[index+1];
+    }
+ 
+    _primitive.lastPoint = function(index) {
+      if (index == 0) return false;
+      else return _primitive.points[index-1];
+    }
+
+    _primitive.nextHandle = function(index) {
+      if (index == _primitive.Editor.handles.length-1) return false;
+      else return _primitive.Editor.handles[index+1];
+    }
+ 
+    _primitive.lastHandle = function(index) {
+      if (index == 0) return false;
+      else return _primitive.Editor.handles[index-1];
+    }
+
+  },
 
 });
 
@@ -572,7 +629,11 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
       // strip whitespace (replace with commas) and split on command letters
       // as apparently spaces and commas are interchangable in SVG???
-      var _commandStrings = _path.el.attributes.d.nodeValue.replace(/\s?([A-Za-z])\s/g,"$1").replace(/,?\s+/g,',').split(/(?=[LMCQZSTZlmcqzstz])/);
+      var _commandStrings = d3.select(_path.el).attr("d").replace(/\s?([A-Za-z])\s/g,"$1")
+                                                         .replace(/(\d)-/g,"$1 -")
+                                                         .replace(/(\d)\s+([A-Za-z])/g,"$1$2")
+                                                         .replace(/,?\s+/g,',')
+                                                         .split(/(?=[LMCQZSTZHVlmcqzstzhv])/);
 
       return _commandStrings.map(function(d){
     
@@ -582,11 +643,25 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
         // skip Z commands, which just close a poly, but have no coords:
         if (_command.command.toUpperCase() != "Z") {
-          for (var j = 0; j < pointsArray.length; j += 2) {
-  
-            _command.points.push([+pointsArray[j],+pointsArray[j+1]]);
-  
+
+          if (_command.command.toUpperCase() == "H") {
+
+            _command.points.push([+pointsArray[0], 0]);
+
+          } else if (_command.command.toUpperCase() == "V") {
+
+            _command.points.push([0, +pointsArray[0]]);
+
+          } else {
+
+            for (var j = 0; j < pointsArray.length; j += 2) {
+           
+              _command.points.push([+pointsArray[j], +pointsArray[j+1]]);
+           
+            }
+
           }
+
         }
     
         return _command;
@@ -625,9 +700,12 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
     }
 
-    _path.Editor.updateBbox();
-    _path.points = _path.getPoints();
-    _path.Editor.initHandles();
+    // kind of... primitive lol; know a better way? :
+    if (!_path.isSubPrimitive) {
+      _path.Editor.updateBbox();
+      _path.points = _path.getPoints();
+      _path.Editor.initHandles();
+    }
 
   }
 
@@ -636,6 +714,8 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 SVGEditor.Polyline = SVGEditor.Path.extend({
 
   init: function(_element, _svg) {
+
+    this.isSubPrimitive = true;
 
     this._super(_element, _svg);
 
@@ -649,7 +729,10 @@ SVGEditor.Polyline = SVGEditor.Path.extend({
 
       // strip whitespace (replace with commas) and split on command letters
       // as apparently spaces and commas are interchangable in SVG???
-      var _points = d3.select(_polyline.el).attr("d").split(" ");
+      var _points = d3.select(_polyline.el).attr("points")
+                                           .replace(/(\d)-/g,"$1 -")
+                                           .replace(/,?\s+/g,',')
+                                           .split(" ");
 
       // use initial Path type start code
       var _code = "M";

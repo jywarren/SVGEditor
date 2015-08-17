@@ -5,7 +5,7 @@ SVGEditor.Handle = Class.extend({
 
   init: function(_parent, _command, index) {
 
-    var _last = _parent._lastPoint || false, // this'll need to be recalculated if any points are added or deleted
+    var _last = _parent.lastHandle(index) || false, // this'll need to be recalculated if any points are added or deleted
         _handle = this,
         _svg = _parent.svg;
 
@@ -24,77 +24,74 @@ SVGEditor.Handle = Class.extend({
     } else {
 
       // last coord pair is our base point
-      var x = _command.points[_command.points.length-1][0],
-          y = _command.points[_command.points.length-1][1];
+      _handle.x = _command.points[_command.points.length-1][0],
+      _handle.y = _command.points[_command.points.length-1][1];
   
       // converts relative positions (based on last point) to absolute
       if (_last && _cmd.toUpperCase() != _cmd) {
-        x += +_last[0];
-        y += +_last[1];
+        _handle.x += _last.x;
+        _handle.y += _last.y;
       }
 
       // detect bezier
       if (_cmd.toUpperCase() == "C" || _cmd.toUpperCase() == "Q") {
   
-        var x1 = _command.points[0][0],
-            y1 = _command.points[0][1];
+        _handle.x1 = _command.points[0][0];
+        _handle.y1 = _command.points[0][1];
   
         if (_cmd.toUpperCase() == "Q") {
-          var x2 = _command.points[0][0],
-              y2 = _command.points[0][1];
+          _handle.x2 = _command.points[0][0];
+          _handle.y2 = _command.points[0][1];
         } else {
-          var x2 = _command.points[1][0],
-              y2 = _command.points[1][1];
+          _handle.x2 = _command.points[1][0];
+          _handle.y2 = _command.points[1][1];
         }
-    
+
+        // converts additional bezier points from relative to absolute 
         if (_last && _cmd.toUpperCase() != _cmd) {
-          x1 += +_last[0];
-          y1 += +_last[1];
-          x2 += +_last[0];
-          y2 += +_last[1];
+          _handle.x1 += +_last.x;
+          _handle.y1 += +_last.y;
+          _handle.x2 += +_last.x;
+          _handle.y2 += +_last.y;
         }
         
-        _handle.x1 = _svg.select("g.control").append("circle")
+        _handle.x1El = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
-                               .attr("cx", x1)
-                               .attr("cy", y1)
+                               .attr("cx", _handle.x1)
+                               .attr("cy", _handle.y1)
                                .attr("r", _handle.width / 2);
-        _handle.elements.push(_handle.x1);
+        _handle.elements.push(_handle.x1El);
     
         _handle.x1Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
-                               .attr("x1", x)
-                               .attr("y1", y)
-                               .attr("x2", x1)
-                               .attr("y2", y1)
+                               .attr("x1", _handle.x)
+                               .attr("y1", _handle.y)
+                               .attr("x2", _handle.x1)
+                               .attr("y2", _handle.y1)
         _handle.elements.push(_handle.x1Line);
     
-        _handle.x2 = _svg.select("g.control").append("circle")
+        _handle.x2El = _svg.select("g.control").append("circle")
                                .attr("class", "handle")
-                               .attr("cx", x2)
-                               .attr("cy", y2)
+                               .attr("cx", _handle.x2)
+                               .attr("cy", _handle.y2)
                                .attr("r", _handle.width / 2);
-        _handle.elements.push(_handle.x2);
+        _handle.elements.push(_handle.x2El);
     
         _handle.x2Line = _svg.select("g.control").append("line")
                                .attr("class", "handle")
-                               .attr("x1", x)
-                               .attr("y1", y)
-                               .attr("x2", x2)
-                               .attr("y2", y2)
+                               .attr("x1", _handle.x)
+                               .attr("y1", _handle.y)
+                               .attr("x2", _handle.x2)
+                               .attr("y2", _handle.y2)
         _handle.elements.push(_handle.x2Line);
 
       }
-  
-      // we should clean this up. Maybe it can be stored inside Handle 
-      // and updated and bubbled down on getPoints 
-      _parent._lastPoint = [x,y];
 
       // handle rect  
       _handle.el = _svg.select("g.control").append("rect")
                              .attr("class", "handle")
-                             .attr("x", x - _handle.width / 2)
-                             .attr("y", y - _handle.width / 2)
+                             .attr("x", _handle.x - _handle.width / 2)
+                             .attr("y", _handle.y - _handle.width / 2)
                              .attr("width", _handle.width)
                              .attr("height", _handle.width);
 
@@ -148,8 +145,11 @@ SVGEditor.Handle = Class.extend({
         _parent.points[_handle.index].points[_points.length-1] = [x,y];
 
         var adjustRelative = function(points) {
-          return [ points[0] + _last[0], points[1] + _last[1] ];
+          return [ points[0] + _last.x, points[1] + _last.y ];
         }
+
+        // adjust next point if it's relative
+
 
         if (_points.length > 1) {
 
@@ -165,17 +165,19 @@ SVGEditor.Handle = Class.extend({
 
           // adjust for relative coords
           if (_last && _cmd.toUpperCase() != _cmd) {
-            bx += +_last[0];
-            by += +_last[1];
+            bx += +_last.x;
+            by += +_last.y;
           }
 
-          _handle.x1.attr("cx", bx)
-                    .attr("cy", by);
-
-          _handle.x1Line.attr("x1", x)
-                        .attr("y1", y)
-                        .attr("x2", bx)
-                        .attr("y2", by);
+          if (_handle.x1El) {
+            _handle.x1El.attr("cx", bx)
+                        .attr("cy", by);
+ 
+            _handle.x1Line.attr("x1", x)
+                          .attr("y1", y)
+                          .attr("x2", bx)
+                          .attr("y2", by);
+          }
  
           // overwrite x2,y2 point (and account for quadratics)
           if (_cmd.toUpperCase() != "Q") old = _handle.oldPoints.points[1],
@@ -185,17 +187,19 @@ SVGEditor.Handle = Class.extend({
 
           // adjust for relative coords
           if (_last && _cmd.toUpperCase() != _cmd) {
-            bx += +_last[0];
-            by += +_last[1];
+            bx += +_last.x;
+            by += +_last.y;
           }
 
-          _handle.x2.attr("cx", bx)
-                    .attr("cy", by);
-
-          _handle.x2Line.attr("x1", x)
-                        .attr("y1", y)
-                        .attr("x2", bx)
-                        .attr("y2", by);
+          if (_handle.x1El) {
+            _handle.x2El.attr("cx", bx)
+                        .attr("cy", by);
+           
+            _handle.x2Line.attr("x1", x)
+                          .attr("y1", y)
+                          .attr("x2", bx)
+                          .attr("y2", by);
+          }
 
         }
 

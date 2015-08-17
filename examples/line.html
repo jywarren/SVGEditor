@@ -18,11 +18,7 @@
 
         svgEditor = new SVGEditor.Environment(); // create a zoomable environment
 
-        d3.selectAll('line').each(function(e,i){
-
-          new SVGEditor.Line(d3.select(this)[0][0]);
-
-        });
+        svgEditor.clickable(); // add listeners to each supported primitive type
 
       }
 

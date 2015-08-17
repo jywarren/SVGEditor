@@ -2,6 +2,8 @@ SVGEditor.Polyline = SVGEditor.Path.extend({
 
   init: function(_element, _svg) {
 
+    this.isSubPrimitive = true;
+
     this._super(_element, _svg);
 
     this.el = _element;
@@ -14,7 +16,10 @@ SVGEditor.Polyline = SVGEditor.Path.extend({
 
       // strip whitespace (replace with commas) and split on command letters
       // as apparently spaces and commas are interchangable in SVG???
-      var _points = d3.select(_polyline.el).attr("d").split(" ");
+      var _points = d3.select(_polyline.el).attr("points")
+                                           .replace(/(\d)-/g,"$1 -")
+                                           .replace(/,?\s+/g,',')
+                                           .split(" ");
 
       // use initial Path type start code
       var _code = "M";

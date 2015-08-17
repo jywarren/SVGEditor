@@ -32,8 +32,37 @@ SVGEditor.Environment = Class.extend({
       d3.select(this).attr('orig-stroke-width', d3.select(this).attr('stroke-width'))
                      .style('stroke-width', 3);
     })
-    .on('mouseout',  function() { 
+    .on('mouseout', function() { 
       d3.select(this).style('stroke-width', d3.select(this).attr('orig-stroke-width'));
+    })
+    .on('click', function() {
+      console.log(typeof this);
+    });
+
+  },
+
+  clickable: function() {
+
+    d3.selectAll('line').each(function(e,i){
+      console.log('line');
+      new SVGEditor.Line(d3.select(this)[0][0]);
+    });
+
+    d3.selectAll('path').each(function(e,i){
+      console.log('path');
+      new SVGEditor.Path(d3.select(this)[0][0]);
+    });
+
+    d3.selectAll('polyline').each(function(e,i){
+      console.log('polyline');
+      // temporary until polygon is made based on polyline
+      new SVGEditor.Polyline(d3.select(this)[0][0]);
+    });
+
+    d3.selectAll('polygon').each(function(e,i){
+      console.log('polygon');
+      // temporary until polygon is made based on polyline
+      new SVGEditor.Polyline(d3.select(this)[0][0]);
     });
 
   },

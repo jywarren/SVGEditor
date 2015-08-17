@@ -18,10 +18,14 @@ SVGEditor.Primitive = Class.extend({
     // Need to standardize/abstract Handles to reference a standard upstream Object.points
     _primitive.Editor.initHandles = function() {
 
-      _primitive.Editor.handles = _primitive.points.map(function(point, index) {
-        return new SVGEditor.Handle(_primitive, point, index);
-      });
-      
+      _primitive.Editor.handles = [];
+
+      for (var i in _primitive.points) {
+
+        _primitive.Editor.handles.push(new SVGEditor.Handle(_primitive, _primitive.points[i], i));
+
+      }
+
     }
 
     _primitive.Editor.updateBbox = function() {
@@ -45,6 +49,26 @@ SVGEditor.Primitive = Class.extend({
 
     }
 
-  }
+    _primitive.nextPoint = function(index) {
+      if (index == _primitive.points.length-1) return false;
+      else return _primitive.points[index+1];
+    }
+ 
+    _primitive.lastPoint = function(index) {
+      if (index == 0) return false;
+      else return _primitive.points[index-1];
+    }
+
+    _primitive.nextHandle = function(index) {
+      if (index == _primitive.Editor.handles.length-1) return false;
+      else return _primitive.Editor.handles[index+1];
+    }
+ 
+    _primitive.lastHandle = function(index) {
+      if (index == 0) return false;
+      else return _primitive.Editor.handles[index-1];
+    }
+
+  },
 
 });
