@@ -12,9 +12,11 @@ SVGEditor.Environment = Class.extend({
     d3.select(_selector).on('click', function() {
 
       // looking for base clicks to trigger deselect
-      //_env.primitives.forEach(function(_primitive) {
-      //  if (_this != _primitive.el) _primitive.deselect();
-      //});
+      _env.primitives.forEach(function(_primitive) {
+
+        if (!_primitive.active) _primitive.deselect();
+
+      });
 
     });
 

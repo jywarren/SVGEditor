@@ -51,6 +51,10 @@ SVGEditor.Primitive = Class.extend({
 
     }
 
+    _primitive.deselect = function() {
+      // something with the active tool; maybe hide everything in this element's control group?
+    }
+
     _primitive.nextPoint = function(index) {
       if (index == _primitive.points.length-1) return false;
       else return _primitive.points[index+1];

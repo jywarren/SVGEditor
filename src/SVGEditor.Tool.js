@@ -4,6 +4,6 @@ SVGEditor.Tool = Class.extend({
 
     var _tool = this;
 
-  } 
+  }
 
 });

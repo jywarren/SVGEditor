@@ -5,15 +5,17 @@ SVGEditor.PointEditor = SVGEditor.Tool.extend({
   },
 
   // add primitives
-  add: function(_pointEditorPrimitives) {
+  add: function(_primitives) {
 
-    _pointEditorPrimitives.forEach(function(_pointEditorPrimitive) {
+    _primitives.forEach(function(_primitive) {
 
-      _pointEditorPrimitive.Editor.handles.forEach(function(_handle) {
+      _primitive.Editor.handles.forEach(function(_handle) {
 
         var drag = d3.behavior.drag();
 
         drag.on("drag", function(d) {
+
+          _handle.active = true;
  
           d3.select(this).attr("x", d3.event.x - _handle.width / 2)
                          .attr("y", d3.event.y - _handle.width / 2);
@@ -21,12 +23,12 @@ SVGEditor.PointEditor = SVGEditor.Tool.extend({
           // adjust parent point to match
           var x = d3.event.x,
               y = d3.event.y,
-              _command = _pointEditorPrimitive.points[_handle.index].command,
-              _pointEditorPoints = _pointEditorPrimitive.points[_handle.index].points,
-              _basePoints = _pointEditorPoints[_pointEditorPoints.length-1];
+              _command = _primitive.points[_handle.index].command,
+              _points = _primitive.points[_handle.index].points,
+              _basePoints = _points[_points.length-1];
  
           // overwrite last point - base point
-          _pointEditorPrimitive.points[_handle.index].points[_pointEditorPoints.length-1] = [x,y];
+          _primitive.points[_handle.index].points[_points.length-1] = [x,y];
  
           var adjustRelative = function(_relativePoints) {
             return [ _relativePoints[0] + _handle.lastPoint.x, _relativePoints[1] + _handle.lastPoint.y ];
@@ -35,7 +37,7 @@ SVGEditor.PointEditor = SVGEditor.Tool.extend({
           // adjust next point if it's relative
  
  
-          if (_pointEditorPoints.length > 1) {
+          if (_points.length > 1) {
  
             // DRY THIS UP & move it into SVGEditor.BezierHandle.js
  
@@ -45,7 +47,7 @@ SVGEditor.PointEditor = SVGEditor.Tool.extend({
             var old = _handle.oldPoints.points[0];
             var bx = old[0] + d3.event.dx;
             var by = old[1] + d3.event.dy;
-            _pointEditorPrimitive.points[_handle.index].points[0] = [bx, by];
+            _primitive.points[_handle.index].points[0] = [bx, by];
  
             // adjust for relative coords
             if (_handle.lastPoint && _cmd.toUpperCase() != _cmd) {
@@ -67,7 +69,7 @@ SVGEditor.PointEditor = SVGEditor.Tool.extend({
             if (_cmd.toUpperCase() != "Q") old = _handle.oldPoints.points[1],
             bx = old[0] + d3.event.dx,
             by = old[1] + d3.event.dy;
-            if (_cmd.toUpperCase() != "Q") _pointEditorPrimitive.points[_handle.index].points[1] = [bx, by];
+            if (_cmd.toUpperCase() != "Q") _primitive.points[_handle.index].points[1] = [bx, by];
  
             // adjust for relative coords
             if (_handle.lastPoint && _cmd.toUpperCase() != _cmd) {
@@ -89,20 +91,22 @@ SVGEditor.PointEditor = SVGEditor.Tool.extend({
  
           // if it's lower case, add relative offsets from last point
           if (_command.toLowerCase() == _command) {
-            _pointEditorPrimitive.points[_handle.index].points.map(adjustRelative);
+            _primitive.points[_handle.index].points.map(adjustRelative);
           }
  
-          _pointEditorPrimitive.Editor.updateBbox();
-console.log(_pointEditorPrimitive.points.length);
-          _pointEditorPrimitive.setPoints(_pointEditorPrimitive.points);
+          _primitive.Editor.updateBbox();
+          _primitive.setPoints(_primitive.points);
  
         });
  
         drag.on("dragend", function(d) {
+
+          _handle.active = false;
+
         });
  
         drag.on("dragstart", function(d) {
-          _handle.oldPoints = _pointEditorPrimitive.points[_handle.index];
+          _handle.oldPoints = _primitive.points[_handle.index];
         });
  
         _handle.el.call(drag);
