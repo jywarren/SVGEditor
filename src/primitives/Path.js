@@ -13,7 +13,11 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
       // strip whitespace (replace with commas) and split on command letters
       // as apparently spaces and commas are interchangable in SVG???
-      var _commandStrings = _path.el.attributes.d.nodeValue.replace(/\s?([A-Za-z])\s/g,"$1").replace(/,?\s+/g,',').split(/(?=[LMCQZSTZlmcqzstz])/);
+      var _commandStrings = d3.select(_path.el).attr("d").replace(/\s?([A-Za-z])\s/g,"$1")
+                                                         .replace(/(\d)-/g,"$1 -")
+                                                         .replace(/(\d)\s+([A-Za-z])/g,"$1$2")
+                                                         .replace(/,?\s+/g,',')
+                                                         .split(/(?=[LMCQZSTZHVlmcqzstzhv])/);
 
       return _commandStrings.map(function(d){
     
@@ -23,11 +27,25 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
         // skip Z commands, which just close a poly, but have no coords:
         if (_command.command.toUpperCase() != "Z") {
-          for (var j = 0; j < pointsArray.length; j += 2) {
-  
-            _command.points.push([+pointsArray[j],+pointsArray[j+1]]);
-  
+
+          if (_command.command.toUpperCase() == "H") {
+
+            _command.points.push([+pointsArray[0], 0]);
+
+          } else if (_command.command.toUpperCase() == "V") {
+
+            _command.points.push([0, +pointsArray[0]]);
+
+          } else {
+
+            for (var _pointsArrayIndex = 0; _pointsArrayIndex < pointsArray.length; _pointsArrayIndex += 2) {
+           
+              _command.points.push([+pointsArray[_pointsArrayIndex], +pointsArray[_pointsArrayIndex+1]]);
+           
+            }
+
           }
+
         }
     
         return _command;
@@ -36,16 +54,16 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
     }
 
 
-    _path.setPoints = function(_points) {
+    _path.setPoints = function(_pathPoints) {
 
       var d = "",
-          _points = _points || _path.points;
+          _pathPoints = _pathPoints || _path.points;
 
-      for (var i in _points) {
+      for (var _pointIndex in _pathPoints) {
 
         var merged = [];
-        merged = merged.concat.apply(merged, _points[i].points);
-        d += _points[i].command + merged.join(',');
+        merged = merged.concat.apply(merged, _pathPoints[_pointIndex].points);
+        d += _pathPoints[_pointIndex].command + merged.join(',');
 
       }
 
@@ -66,9 +84,12 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
     }
 
-    _path.Editor.updateBbox();
-    _path.points = _path.getPoints();
-    _path.Editor.initHandles();
+    // kind of... primitive lol; know a better way? :
+    if (!_path.isSubPrimitive) {
+      _path.Editor.updateBbox();
+      _path.points = _path.getPoints();
+      _path.Editor.initHandles();
+    }
 
   }
 

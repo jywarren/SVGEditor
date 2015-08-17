@@ -70,16 +70,23 @@ SVGEditor = {};
 
 SVGEditor.Environment = Class.extend({
 
+  tools: {},
+  primitives: [],
+
   // Sets up an environment, which gets us zooming and such
   init: function(_selector) {
 
+    var _env = this;
     _selector = _selector || "svg";
 
     d3.select(_selector).on('click', function() {
 
       // looking for base clicks to trigger deselect
-      // but this'll involve allowing event to bubble up through objects
-      console.log('clicked on svg el');
+      _env.primitives.forEach(function(_primitive) {
+
+        if (!_primitive.active) _primitive.deselect();
+
+      });
 
     });
 
@@ -102,9 +109,41 @@ SVGEditor.Environment = Class.extend({
       d3.select(this).attr('orig-stroke-width', d3.select(this).attr('stroke-width'))
                      .style('stroke-width', 3);
     })
-    .on('mouseout',  function() { 
+    .on('mouseout', function() { 
       d3.select(this).style('stroke-width', d3.select(this).attr('orig-stroke-width'));
+    })
+    .on('click', function() {
+      console.log(typeof this);
     });
+
+    // add tools here:
+    _env.tools.pointEditor = new SVGEditor.PointEditor();
+
+
+    _env.clickable = function() {
+ 
+      d3.selectAll('line').each(function(e,i){
+        _env.primitives.push(new SVGEditor.Line(d3.select(this)[0][0]));
+      });
+ 
+      d3.selectAll('path').each(function(e,i){
+        _env.primitives.push(new SVGEditor.Path(d3.select(this)[0][0]));
+      });
+ 
+      d3.selectAll('polygon').each(function(e,i){
+        _env.primitives.push(new SVGEditor.Polyline(d3.select(this)[0][0]));
+      });
+ 
+      d3.selectAll('polyline').each(function(e,i){
+        // temporary until polygon is made based on polyline
+        _env.primitives.push(new SVGEditor.Polyline(d3.select(this)[0][0]));
+      });
+
+      // make tools aware of primitives here, 
+      // although there should be some kind of tool selection system 
+      _env.tools.pointEditor.add(_env.primitives);
+
+    }
 
   },
 
@@ -117,9 +156,9 @@ SVGEditor.Environment = Class.extend({
  
     var svgEditor = new SVGEditor.Environment();
  
-    for (var i = 0; i < _paths.length; i++) {
+    for (var _pathConvertIndex = 0; _pathConvertIndex < _paths.length; _pathConvertIndex++) {
  
-      var _path = new SVGEditor.Path(_paths[i]);
+      var _path = new SVGEditor.Path(_paths[_pathConvertIndex]);
  
     }
 
@@ -196,102 +235,101 @@ SVGEditor.Handle = Class.extend({
 
   init: function(_parent, _command, index) {
 
-    var _last = _parent._lastPoint || false, // this'll need to be recalculated if any points are added or deleted
-        _handle = this,
+    var _handle = this,
         _svg = _parent.svg;
 
     _handle.index = index;
+    _handle.lastPoint = _parent.lastHandle(index) || false; // this'll need to be recalculated if any points are added or deleted
 
     var _cmd = _command.command;
 
-    //_handle.setBezierPoints = function() {
-
-    //}
+    _handle.setPoints = function() {
   
-    if (_cmd.toUpperCase() == "Z") {
-  
-      // SVG command to connect to first point again; we may not need to do anything here
-  
-    } else {
-
-      // last coord pair is our base point
-      var x = _command.points[_command.points.length-1][0],
-          y = _command.points[_command.points.length-1][1];
-  
-      // converts relative positions (based on last point) to absolute
-      if (_last && _cmd.toUpperCase() != _cmd) {
-        x += +_last[0];
-        y += +_last[1];
-      }
-
-      // detect bezier
-      if (_cmd.toUpperCase() == "C" || _cmd.toUpperCase() == "Q") {
-  
-        var x1 = _command.points[0][0],
-            y1 = _command.points[0][1];
-  
-        if (_cmd.toUpperCase() == "Q") {
-          var x2 = _command.points[0][0],
-              y2 = _command.points[0][1];
-        } else {
-          var x2 = _command.points[1][0],
-              y2 = _command.points[1][1];
+      if (_cmd.toUpperCase() == "Z") {
+    
+        // SVG command to connect to first point again; we may not need to do anything here
+    
+      } else {
+ 
+        // last coord pair is our base point
+        _handle.x = _command.points[_command.points.length-1][0],
+        _handle.y = _command.points[_command.points.length-1][1];
+    
+        // converts relative positions (based on last point) to absolute
+        if (_handle.lastPoint && _cmd.toUpperCase() != _cmd) {
+          _handle.x += _handle.lastPoint.x;
+          _handle.y += _handle.lastPoint.y;
         }
+ 
+        // detect bezier
+        if (_cmd.toUpperCase() == "C" || _cmd.toUpperCase() == "Q") {
     
-        if (_last && _cmd.toUpperCase() != _cmd) {
-          x1 += +_last[0];
-          y1 += +_last[1];
-          x2 += +_last[0];
-          y2 += +_last[1];
+          _handle.x1 = _command.points[0][0];
+          _handle.y1 = _command.points[0][1];
+    
+          if (_cmd.toUpperCase() == "Q") {
+            _handle.x2 = _command.points[0][0];
+            _handle.y2 = _command.points[0][1];
+          } else {
+            _handle.x2 = _command.points[1][0];
+            _handle.y2 = _command.points[1][1];
+          }
+ 
+          // converts additional bezier points from relative to absolute 
+          if (_handle.lastPoint && _cmd.toUpperCase() != _cmd) {
+            _handle.x1 += +_handle.lastPoint.x;
+            _handle.y1 += +_handle.lastPoint.y;
+            _handle.x2 += +_handle.lastPoint.x;
+            _handle.y2 += +_handle.lastPoint.y;
+          }
+          
+          _handle.x1El = _svg.select("g.control").append("circle")
+                                 .attr("class", "handle")
+                                 .attr("cx", _handle.x1)
+                                 .attr("cy", _handle.y1)
+                                 .attr("r", _handle.width / 2);
+          _handle.elements.push(_handle.x1El);
+      
+          _handle.x1Line = _svg.select("g.control").append("line")
+                                 .attr("class", "handle")
+                                 .attr("x1", _handle.x)
+                                 .attr("y1", _handle.y)
+                                 .attr("x2", _handle.x1)
+                                 .attr("y2", _handle.y1)
+          _handle.elements.push(_handle.x1Line);
+      
+          _handle.x2El = _svg.select("g.control").append("circle")
+                                 .attr("class", "handle")
+                                 .attr("cx", _handle.x2)
+                                 .attr("cy", _handle.y2)
+                                 .attr("r", _handle.width / 2);
+          _handle.elements.push(_handle.x2El);
+      
+          _handle.x2Line = _svg.select("g.control").append("line")
+                                 .attr("class", "handle")
+                                 .attr("x1", _handle.x)
+                                 .attr("y1", _handle.y)
+                                 .attr("x2", _handle.x2)
+                                 .attr("y2", _handle.y2)
+          _handle.elements.push(_handle.x2Line);
+ 
         }
-        
-        _handle.x1 = _svg.select("g.control").append("circle")
+ 
+        // handle rect  
+        _handle.el = _svg.select("g.control").append("rect")
                                .attr("class", "handle")
-                               .attr("cx", x1)
-                               .attr("cy", y1)
-                               .attr("r", _handle.width / 2);
-        _handle.elements.push(_handle.x1);
-    
-        _handle.x1Line = _svg.select("g.control").append("line")
-                               .attr("class", "handle")
-                               .attr("x1", x)
-                               .attr("y1", y)
-                               .attr("x2", x1)
-                               .attr("y2", y1)
-        _handle.elements.push(_handle.x1Line);
-    
-        _handle.x2 = _svg.select("g.control").append("circle")
-                               .attr("class", "handle")
-                               .attr("cx", x2)
-                               .attr("cy", y2)
-                               .attr("r", _handle.width / 2);
-        _handle.elements.push(_handle.x2);
-    
-        _handle.x2Line = _svg.select("g.control").append("line")
-                               .attr("class", "handle")
-                               .attr("x1", x)
-                               .attr("y1", y)
-                               .attr("x2", x2)
-                               .attr("y2", y2)
-        _handle.elements.push(_handle.x2Line);
-
+                               .attr("x", _handle.x - _handle.width / 2)
+                               .attr("y", _handle.y - _handle.width / 2)
+                               .attr("width", _handle.width)
+                               .attr("height", _handle.width);
+ 
+        _handle.elements.push(_handle.el);
+ 
       }
-  
-      // we should clean this up. Maybe it can be stored inside Handle 
-      // and updated and bubbled down on getPoints 
-      _parent._lastPoint = [x,y];
-
-      // handle rect  
-      _handle.el = _svg.select("g.control").append("rect")
-                             .attr("class", "handle")
-                             .attr("x", x - _handle.width / 2)
-                             .attr("y", y - _handle.width / 2)
-                             .attr("width", _handle.width)
-                             .attr("height", _handle.width);
-
-      _handle.elements.push(_handle.el);
 
     }
+
+    _handle.setPoints();
 
     _handle.style = function() {
 
@@ -305,12 +343,7 @@ SVGEditor.Handle = Class.extend({
                               .attr("stroke-width", 1)
                               .attr("fill", "rgba(255,255,255,0.25)");
 
-    }
-
-    _handle.style();
-
-    _handle.eventSetup = function() {
-  
+      // hovers make lines easier to click on 
       _svg.select("g.control").selectAll("rect,circle")
                               .on("mouseover", function() {
                                 d3.select(this).attr("stroke", "#f0f");
@@ -319,102 +352,10 @@ SVGEditor.Handle = Class.extend({
                                 d3.select(this).attr("stroke", "#0ff");
                               });
 
-      // drag events:
-
-      var drag = d3.behavior.drag();
-
-      drag.on("drag", function(d) {
-
-        d3.select(this).attr("x", d3.event.x - _handle.width / 2)
-                       .attr("y", d3.event.y - _handle.width / 2);
-
-        // adjust parent point to match
-        var x = d3.event.x,
-            y = d3.event.y,
-            _command = _parent.points[_handle.index].command,
-            _points = _parent.points[_handle.index].points,
-            _basePoints = _points[_points.length-1];
-
-        // overwrite last point - base point
-        _parent.points[_handle.index].points[_points.length-1] = [x,y];
-
-        var adjustRelative = function(points) {
-          return [ points[0] + _last[0], points[1] + _last[1] ];
-        }
-
-        if (_points.length > 1) {
-
-          // DRY THIS UP & move it into SVGEditor.BezierHandle.js
-
-          // update bezier handles
-
-          // overwrite x1,y1 point
-          var old = _handle.oldPoints.points[0];
-          var bx = old[0] + d3.event.dx;
-          var by = old[1] + d3.event.dy;
-          _parent.points[_handle.index].points[0] = [bx, by];
-
-          // adjust for relative coords
-          if (_last && _cmd.toUpperCase() != _cmd) {
-            bx += +_last[0];
-            by += +_last[1];
-          }
-
-          _handle.x1.attr("cx", bx)
-                    .attr("cy", by);
-
-          _handle.x1Line.attr("x1", x)
-                        .attr("y1", y)
-                        .attr("x2", bx)
-                        .attr("y2", by);
- 
-          // overwrite x2,y2 point (and account for quadratics)
-          if (_cmd.toUpperCase() != "Q") old = _handle.oldPoints.points[1],
-          bx = old[0] + d3.event.dx,
-          by = old[1] + d3.event.dy;
-          if (_cmd.toUpperCase() != "Q") _parent.points[_handle.index].points[1] = [bx, by];
-
-          // adjust for relative coords
-          if (_last && _cmd.toUpperCase() != _cmd) {
-            bx += +_last[0];
-            by += +_last[1];
-          }
-
-          _handle.x2.attr("cx", bx)
-                    .attr("cy", by);
-
-          _handle.x2Line.attr("x1", x)
-                        .attr("y1", y)
-                        .attr("x2", bx)
-                        .attr("y2", by);
-
-        }
-
-        // if it's lower case, add relative offsets from last point
-        if (_command.toLowerCase() == _command) {
-          _parent.points[_handle.index].points.map(adjustRelative);
-        }
-
-        _parent.Editor.updateBbox();
-        _parent.setPoints(_parent.points);
-
-      });
-
-      drag.on("dragend", function(d) {
-      });
-
-      drag.on("dragstart", function(d) {
-        _handle.oldPoints = _parent.points[_handle.index];
-      });
-
-      _handle.el.call(drag);
-
-      // make whole object draggable? More complex than this. 
-      // _svg.select(_parent).call(drag);
-
     }
 
-    _handle.eventSetup();
+    _handle.style();
+
 
     _handle.destroy = function() {
 
@@ -446,6 +387,8 @@ SVGEditor.Primitive = Class.extend({
 
     this.el = _element;
     var _primitive = this;
+
+    console.log(this.el.localName);
  
     _primitive.svg = _svg || d3.select('svg');
     _svg = _primitive.svg;
@@ -460,10 +403,14 @@ SVGEditor.Primitive = Class.extend({
     // Need to standardize/abstract Handles to reference a standard upstream Object.points
     _primitive.Editor.initHandles = function() {
 
-      _primitive.Editor.handles = _primitive.points.map(function(point, index) {
-        return new SVGEditor.Handle(_primitive, point, index);
-      });
-      
+      _primitive.Editor.handles = [];
+
+      for (var _primitivePointIndex in _primitive.points) {
+
+        _primitive.Editor.handles.push(new SVGEditor.Handle(_primitive, _primitive.points[_primitivePointIndex], _primitivePointIndex));
+
+      }
+
     }
 
     _primitive.Editor.updateBbox = function() {
@@ -487,6 +434,162 @@ SVGEditor.Primitive = Class.extend({
 
     }
 
+    _primitive.deselect = function() {
+      // something with the active tool; maybe hide everything in this element's control group?
+    }
+
+    _primitive.nextPoint = function(index) {
+      if (index == _primitive.points.length-1) return false;
+      else return _primitive.points[index+1];
+    }
+ 
+    _primitive.lastPoint = function(index) {
+      if (index == 0) return false;
+      else return _primitive.points[index-1];
+    }
+
+    _primitive.nextHandle = function(index) {
+      if (index == _primitive.Editor.handles.length-1) return false;
+      else return _primitive.Editor.handles[index+1];
+    }
+ 
+    _primitive.lastHandle = function(index) {
+      if (index == 0) return false;
+      else return _primitive.Editor.handles[index-1];
+    }
+
+  },
+
+});
+
+SVGEditor.Tool = Class.extend({
+
+  init: function() {
+
+    var _tool = this;
+
+  }
+
+});
+
+
+SVGEditor.PointEditor = SVGEditor.Tool.extend({
+
+  init: function() {
+
+  },
+
+  // add primitives
+  add: function(_primitives) {
+
+    _primitives.forEach(function(_primitive) {
+
+      _primitive.Editor.handles.forEach(function(_handle) {
+
+        var drag = d3.behavior.drag();
+
+        drag.on("drag", function(d) {
+
+          _handle.active = true;
+ 
+          d3.select(this).attr("x", d3.event.x - _handle.width / 2)
+                         .attr("y", d3.event.y - _handle.width / 2);
+ 
+          // adjust parent point to match
+          var x = d3.event.x,
+              y = d3.event.y,
+              _command = _primitive.points[_handle.index].command,
+              _points = _primitive.points[_handle.index].points,
+              _basePoints = _points[_points.length-1];
+ 
+          // overwrite last point - base point
+          _primitive.points[_handle.index].points[_points.length-1] = [x,y];
+ 
+          var adjustRelative = function(_relativePoints) {
+            return [ _relativePoints[0] + _handle.lastPoint.x, _relativePoints[1] + _handle.lastPoint.y ];
+          }
+ 
+          // adjust next point if it's relative
+ 
+ 
+          if (_points.length > 1) {
+ 
+            // DRY THIS UP & move it into SVGEditor.BezierHandle.js
+ 
+            // update bezier handles
+ 
+            // overwrite x1,y1 point
+            var old = _handle.oldPoints.points[0];
+            var bx = old[0] + d3.event.dx;
+            var by = old[1] + d3.event.dy;
+            _primitive.points[_handle.index].points[0] = [bx, by];
+ 
+            // adjust for relative coords
+            if (_handle.lastPoint && _cmd.toUpperCase() != _cmd) {
+              bx += +_handle.lastPoint.x;
+              by += +_handle.lastPoint.y;
+            }
+ 
+            if (_handle.x1El) {
+              _handle.x1El.attr("cx", bx)
+                          .attr("cy", by);
+  
+              _handle.x1Line.attr("x1", x)
+                            .attr("y1", y)
+                            .attr("x2", bx)
+                            .attr("y2", by);
+            }
+  
+            // overwrite x2,y2 point (and account for quadratics)
+            if (_cmd.toUpperCase() != "Q") old = _handle.oldPoints.points[1],
+            bx = old[0] + d3.event.dx,
+            by = old[1] + d3.event.dy;
+            if (_cmd.toUpperCase() != "Q") _primitive.points[_handle.index].points[1] = [bx, by];
+ 
+            // adjust for relative coords
+            if (_handle.lastPoint && _cmd.toUpperCase() != _cmd) {
+              bx += +_handle.lastPoint.x;
+              by += +_handle.lastPoint.y;
+            }
+ 
+            if (_handle.x1El) {
+              _handle.x2El.attr("cx", bx)
+                          .attr("cy", by);
+             
+              _handle.x2Line.attr("x1", x)
+                            .attr("y1", y)
+                            .attr("x2", bx)
+                            .attr("y2", by);
+            }
+ 
+          }
+ 
+          // if it's lower case, add relative offsets from last point
+          if (_command.toLowerCase() == _command) {
+            _primitive.points[_handle.index].points.map(adjustRelative);
+          }
+ 
+          _primitive.Editor.updateBbox();
+          _primitive.setPoints(_primitive.points);
+ 
+        });
+ 
+        drag.on("dragend", function(d) {
+
+          _handle.active = false;
+
+        });
+ 
+        drag.on("dragstart", function(d) {
+          _handle.oldPoints = _primitive.points[_handle.index];
+        });
+ 
+        _handle.el.call(drag);
+ 
+      });
+
+    });
+
   }
 
 });
@@ -504,15 +607,15 @@ SVGEditor.Line = SVGEditor.Primitive.extend({
     _line.getPoints = function() {
 
       var _attributes = [['x1', 'y1'], ['x2', 'y2']],
-          _points = [];
+          _linePoints = [];
 
       // use initial Path type start code
       var _code = "M";
 
-      for (var i in _attributes) {
+      for (var _attributeIndex in _attributes) {
 
-        var px = d3.select(_line.el).attr(_attributes[i][0]),
-            py = d3.select(_line.el).attr(_attributes[i][1]);
+        var px = d3.select(_line.el).attr(_attributes[_attributeIndex][0]),
+            py = d3.select(_line.el).attr(_attributes[_attributeIndex][1]);
     
         var _point = { command: _code,
                        points: [[px, py]] };
@@ -521,20 +624,20 @@ SVGEditor.Line = SVGEditor.Primitive.extend({
         // if this is a Polygon instead of a Polyline, the final point will close the poly
         _code = "L";
 
-        _points.push(_point);
+        _linePoints.push(_point);
 
       }
-      return _points;
+      return _linePoints;
 
     }
 
 
-    _line.setPoints = function(_points) {
+    _line.setPoints = function(_linePoints) {
 
-      var x1 = _points[0].points[0][0],
-          y1 = _points[0].points[0][1],
-          x2 = _points[1].points[0][0],
-          y2 = _points[1].points[0][1];
+      var x1 = _linePoints[0].points[0][0],
+          y1 = _linePoints[0].points[0][1],
+          x2 = _linePoints[1].points[0][0],
+          y2 = _linePoints[1].points[0][1];
 
       d3.select(_line.el).attr("x1", x1)
                          .attr("y1", y1)
@@ -572,7 +675,11 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
       // strip whitespace (replace with commas) and split on command letters
       // as apparently spaces and commas are interchangable in SVG???
-      var _commandStrings = _path.el.attributes.d.nodeValue.replace(/\s?([A-Za-z])\s/g,"$1").replace(/,?\s+/g,',').split(/(?=[LMCQZSTZlmcqzstz])/);
+      var _commandStrings = d3.select(_path.el).attr("d").replace(/\s?([A-Za-z])\s/g,"$1")
+                                                         .replace(/(\d)-/g,"$1 -")
+                                                         .replace(/(\d)\s+([A-Za-z])/g,"$1$2")
+                                                         .replace(/,?\s+/g,',')
+                                                         .split(/(?=[LMCQZSTZHVlmcqzstzhv])/);
 
       return _commandStrings.map(function(d){
     
@@ -582,11 +689,25 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
         // skip Z commands, which just close a poly, but have no coords:
         if (_command.command.toUpperCase() != "Z") {
-          for (var j = 0; j < pointsArray.length; j += 2) {
-  
-            _command.points.push([+pointsArray[j],+pointsArray[j+1]]);
-  
+
+          if (_command.command.toUpperCase() == "H") {
+
+            _command.points.push([+pointsArray[0], 0]);
+
+          } else if (_command.command.toUpperCase() == "V") {
+
+            _command.points.push([0, +pointsArray[0]]);
+
+          } else {
+
+            for (var _pointsArrayIndex = 0; _pointsArrayIndex < pointsArray.length; _pointsArrayIndex += 2) {
+           
+              _command.points.push([+pointsArray[_pointsArrayIndex], +pointsArray[_pointsArrayIndex+1]]);
+           
+            }
+
           }
+
         }
     
         return _command;
@@ -595,16 +716,16 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
     }
 
 
-    _path.setPoints = function(_points) {
+    _path.setPoints = function(_pathPoints) {
 
       var d = "",
-          _points = _points || _path.points;
+          _pathPoints = _pathPoints || _path.points;
 
-      for (var i in _points) {
+      for (var _pointIndex in _pathPoints) {
 
         var merged = [];
-        merged = merged.concat.apply(merged, _points[i].points);
-        d += _points[i].command + merged.join(',');
+        merged = merged.concat.apply(merged, _pathPoints[_pointIndex].points);
+        d += _pathPoints[_pointIndex].command + merged.join(',');
 
       }
 
@@ -625,9 +746,12 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 
     }
 
-    _path.Editor.updateBbox();
-    _path.points = _path.getPoints();
-    _path.Editor.initHandles();
+    // kind of... primitive lol; know a better way? :
+    if (!_path.isSubPrimitive) {
+      _path.Editor.updateBbox();
+      _path.points = _path.getPoints();
+      _path.Editor.initHandles();
+    }
 
   }
 
@@ -636,6 +760,8 @@ SVGEditor.Path = SVGEditor.Primitive.extend({
 SVGEditor.Polyline = SVGEditor.Path.extend({
 
   init: function(_element, _svg) {
+
+    this.isSubPrimitive = true;
 
     this._super(_element, _svg);
 
@@ -649,12 +775,16 @@ SVGEditor.Polyline = SVGEditor.Path.extend({
 
       // strip whitespace (replace with commas) and split on command letters
       // as apparently spaces and commas are interchangable in SVG???
-      var _points = d3.select(_polyline.el).attr("d").split(" ");
+      var _polylinePoints = d3.select(_polyline.el).attr("points")
+                                           .replace(/(\d)-/g,"$1 -")
+                                           .replace(/\s+$/,'')
+                                           .replace(/\n/,'')
+                                           .split(" ");
 
       // use initial Path type start code
       var _code = "M";
 
-      return _points.map(function(p){
+      return _polylinePoints.map(function(p){
     
         var _point = { command: _code,
                        points: [p.split(',')] };
@@ -669,15 +799,15 @@ SVGEditor.Polyline = SVGEditor.Path.extend({
     }
 
 
-    _polyline.setPoints = function(_points) {
+    _polyline.setPoints = function(_polylinePoints) {
 
       var _attr = "",
-          _points = _points || _polyline.points;
+          _polylinePoints = _polylinePoints || _polyline.points;
 
-      for (var i in _points) {
+      for (var _polylineIndex in _polylinePoints) {
 
-        if (i > 0) _attr += " ";
-        _attr += _points.points[0].join(',');
+        if (_polylineIndex > 0) _attr += " ";
+        _attr += _polylinePoints[0].points[0].join(',');
 
       }
 

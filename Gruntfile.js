@@ -24,6 +24,7 @@ module.exports = function(grunt) {
                 src: [
                     'src/core/Class.js',
                     'src/*.js',
+                    'src/tools/*.js',
                     'src/primitives/Line.js',
                     'src/primitives/Path.js',
                     'src/primitives/Polyline.js'
